@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admissions — {{.SchoolName}}</title>
+  <meta name="description" content="Apply for admission to {{.SchoolName}}. Nursery, Primary, and Secondary school places available." />
+  <link rel="preload" href="/static/fonts/PlusJakartaSans-Bold.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/static/fonts/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/static/css/app.css" />
+  {{if .SchoolLogoURL}}<link rel="icon" type="image/png" href="{{.SchoolLogoURL}}" />{{end}}
+</head>
+<body class="bg-background text-text-primary font-body antialiased overflow-x-hidden">
+  <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:bg-accent focus:text-white focus:px-4 focus:py-2 focus:rounded-lg">Skip to main content</a>
+
+  <header id="site-nav" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300" role="banner">
+    <nav class="max-w-[1440px] mx-auto px-6 lg:px-12 h-16 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-3 flex-shrink-0">
+        {{if .SchoolLogoURL}}<img src="{{.SchoolLogoURL}}" alt="" class="h-10 w-10 object-contain rounded-lg" width="40" height="40">{{end}}
+        <span class="font-display font-bold text-lg text-white leading-tight hidden sm:block">{{.SchoolName}}</span>
+      </a>
+      <ul class="hidden lg:flex items-center gap-1">
+        <li><a href="/" class="nav-link px-4 py-2 rounded-lg text-sm font-medium text-white/80 hover:text-white transition-colors">Home</a></li>
+        <li><a href="/about" class="nav-link px-4 py-2 rounded-lg text-sm font-medium text-white/80 hover:text-white transition-colors">About</a></li>
+        <li><a href="/feed" class="nav-link px-4 py-2 rounded-lg text-sm font-medium text-white/80 hover:text-white transition-colors">Activities</a></li>
+        <li><a href="/admissions" class="nav-link px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors">Admissions</a></li>
+      </ul>
+      <div class="flex items-center gap-3">
+        <a href="/login" class="hidden sm:inline-flex text-sm font-medium text-white/80 hover:text-white transition-colors min-h-[44px] items-center">Portal</a>
+        <a href="#apply" class="inline-flex items-center bg-white text-primary text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-white/90 transition-all shadow-sm min-h-[44px]">Apply Now</a>
+        <button id="mobile-menu-btn" class="lg:hidden p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center" aria-label="Open menu">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main-content">
+    <!-- Hero -->
+    <section class="bg-primary pt-32 pb-20 relative overflow-hidden">
+      <div class="absolute inset-0 bg-gradient-to-br from-primary to-accent/30"></div>
+      <div class="relative z-10 max-w-[1440px] mx-auto px-6 lg:px-12 text-center">
+        <h1 class="font-display font-bold text-white text-4xl lg:text-5xl mb-4">Admissions</h1>
+        <p class="text-white/70 text-lg max-w-2xl mx-auto">Begin your child's journey to excellence. We welcome applications for Nursery, Primary, and Secondary school.</p>
+
+        <!-- Admission Window Status -->
+        {{if .AdmissionWindowOpen}}
+        <div class="inline-flex items-center gap-2 bg-success/20 border border-success/30 rounded-full px-5 py-2 text-success text-sm font-medium mt-6">
+          <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
+          Admissions Open — Closes {{.AdmissionWindowCloseDate}}
+        </div>
+        {{else}}
+        <div class="inline-flex items-center gap-2 bg-danger/20 border border-danger/30 rounded-full px-5 py-2 text-danger text-sm font-medium mt-6">
+          <span class="w-2 h-2 rounded-full bg-danger"></span>
+          Admissions Currently Closed
+        </div>
+        {{end}}
+      </div>
+    </section>
+
+    <!-- Process Steps -->
+    <section class="py-20 bg-white">
+      <div class="max-w-[1440px] mx-auto px-6 lg:px-12">
+        <div class="text-center mb-12">
+          <span class="inline-block text-accent text-sm font-semibold uppercase tracking-widest mb-3">How It Works</span>
+          <h2 class="font-display font-bold text-primary text-3xl lg:text-4xl">The Admissions Process</h2>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div class="text-center">
+            <div class="w-14 h-14 rounded-2xl bg-accent text-white font-bold text-xl flex items-center justify-center mx-auto mb-4">1</div>
+            <h3 class="font-semibold text-primary mb-2">Register Online</h3>
+            <p class="text-text-secondary text-sm">Create a parent account and verify your email address.</p>
+          </div>
+          <div class="text-center">
+            <div class="w-14 h-14 rounded-2xl bg-accent text-white font-bold text-xl flex items-center justify-center mx-auto mb-4">2</div>
+            <h3 class="font-semibold text-primary mb-2">Submit Application</h3>
+            <p class="text-text-secondary text-sm">Complete the online application form with your child's details and documents.</p>
+          </div>
+          <div class="text-center">
+            <div class="w-14 h-14 rounded-2xl bg-accent text-white font-bold text-xl flex items-center justify-center mx-auto mb-4">3</div>
+            <h3 class="font-semibold text-primary mb-2">School Visit</h3>
+            <p class="text-text-secondary text-sm">Receive your appointment letter and visit the school on your assigned date.</p>
+          </div>
+          <div class="text-center">
+            <div class="w-14 h-14 rounded-2xl bg-accent text-white font-bold text-xl flex items-center justify-center mx-auto mb-4">4</div>
+            <h3 class="font-semibold text-primary mb-2">Admission Decision</h3>
+            <p class="text-text-secondary text-sm">Receive your admission letter and complete enrolment.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Divisions -->
+    <section class="py-20 bg-background">
+      <div class="max-w-[1440px] mx-auto px-6 lg:px-12">
+        <div class="text-center mb-12">
+          <h2 class="font-display font-bold text-primary text-3xl lg:text-4xl">Available Divisions</h2>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <a href="/divisions/nursery" class="card p-6 hover:shadow-lg transition-shadow group">
+            <div class="w-12 h-12 rounded-xl bg-gold/10 flex items-center justify-center mb-4 group-hover:bg-gold/20 transition-colors">
+              <svg class="text-gold" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            </div>
+            <h3 class="font-semibold text-primary text-lg mb-2">Nursery School</h3>
+            <p class="text-text-secondary text-sm mb-3">Ages 2–5 · Nursery 1, 2, 3</p>
+            <p class="text-text-secondary text-sm leading-relaxed">A nurturing environment where young learners develop foundational skills through play-based learning.</p>
+            <span class="inline-flex items-center gap-1 text-accent text-sm font-medium mt-4">Learn more <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></span>
+          </a>
+          <a href="/divisions/primary" class="card p-6 hover:shadow-lg transition-shadow group">
+            <div class="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mb-4 group-hover:bg-accent/20 transition-colors">
+              <svg class="text-accent" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            </div>
+            <h3 class="font-semibold text-primary text-lg mb-2">Primary School</h3>
+            <p class="text-text-secondary text-sm mb-3">Ages 6–12 · Primary 1–6</p>
+            <p class="text-text-secondary text-sm leading-relaxed">Building strong academic foundations with a broad curriculum that develops critical thinking and creativity.</p>
+            <span class="inline-flex items-center gap-1 text-accent text-sm font-medium mt-4">Learn more <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></span>
+          </a>
+          <a href="/divisions/secondary" class="card p-6 hover:shadow-lg transition-shadow group">
+            <div class="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center mb-4 group-hover:bg-success/20 transition-colors">
+              <svg class="text-success" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
+            </div>
+            <h3 class="font-semibold text-primary text-lg mb-2">Secondary School</h3>
+            <p class="text-text-secondary text-sm mb-3">Ages 12–18 · JSS 1–3, SS 1–3</p>
+            <p class="text-text-secondary text-sm leading-relaxed">Rigorous academic preparation for university entrance with a focus on excellence and character.</p>
+            <span class="inline-flex items-center gap-1 text-accent text-sm font-medium mt-4">Learn more <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Apply CTA -->
+    <section id="apply" class="py-20 bg-primary">
+      <div class="max-w-[1440px] mx-auto px-6 lg:px-12 text-center">
+        {{if .AdmissionWindowOpen}}
+        <h2 class="font-display font-bold text-white text-3xl lg:text-4xl mb-4">Ready to Apply?</h2>
+        <p class="text-white/70 text-lg mb-8 max-w-xl mx-auto">Create a parent account to begin your application. The process takes about 10 minutes.</p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <a href="/register" class="inline-flex items-center justify-center bg-white text-primary font-semibold px-8 py-3 rounded-xl hover:bg-white/90 transition-all min-h-[44px]">Create Account &amp; Apply</a>
+          <a href="/login" class="inline-flex items-center justify-center border border-white/30 text-white font-medium px-8 py-3 rounded-xl hover:bg-white/10 transition-all min-h-[44px]">Already have an account?</a>
+        </div>
+        {{else}}
+        <h2 class="font-display font-bold text-white text-3xl lg:text-4xl mb-4">Admissions Currently Closed</h2>
+        <p class="text-white/70 text-lg mb-8 max-w-xl mx-auto">Our admissions window is currently closed. Please check back later or contact us for more information.</p>
+        <a href="/about" class="inline-flex items-center justify-center border border-white/30 text-white font-medium px-8 py-3 rounded-xl hover:bg-white/10 transition-all min-h-[44px]">Learn More About Us</a>
+        {{end}}
+      </div>
+    </section>
+  </main>
+
+  <footer class="bg-primary border-t border-white/10 py-12">
+    <div class="max-w-[1440px] mx-auto px-6 lg:px-12">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          {{if .SchoolLogoURL}}<img src="{{.SchoolLogoURL}}" alt="" class="h-8 w-8 object-contain rounded" width="32" height="32">{{end}}
+          <span class="font-display font-bold text-white">{{.SchoolName}}</span>
+        </div>
+        <p class="text-white/50 text-sm">© {{.CurrentYear}} {{.SchoolName}}. All rights reserved.</p>
+        <div class="flex gap-4">
+          <a href="/verify" class="text-white/50 hover:text-white text-sm transition-colors">Verify Document</a>
+          <a href="/login" class="text-white/50 hover:text-white text-sm transition-colors">Staff Portal</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="/static/js/public/nav.js"></script>
+</body>
+</html>

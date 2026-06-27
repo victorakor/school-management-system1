@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 11px; color: #0F172A; background: white; }
+  .page { width: 210mm; min-height: 297mm; padding: 16mm 18mm; }
+  .header { display: flex; align-items: center; gap: 16px; border-bottom: 3px solid #0F2557; padding-bottom: 14px; margin-bottom: 20px; }
+  .header img { width: 72px; height: 72px; object-fit: contain; }
+  .school-name { font-size: 20px; font-weight: 900; color: #0F2557; text-transform: uppercase; }
+  .school-motto { font-size: 10px; color: #64748B; font-style: italic; margin-top: 3px; }
+  .school-contact { font-size: 9px; color: #64748B; margin-top: 5px; }
+  .doc-title { font-size: 14px; font-weight: 700; color: #2563EB; text-align: center; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 24px; }
+  .ref-line { font-size: 10px; color: #64748B; margin-bottom: 20px; }
+  .ref-line span { font-family: monospace; font-weight: 700; color: #0F172A; }
+  .date-line { font-size: 10px; color: #64748B; margin-bottom: 24px; }
+  .salutation { font-size: 11px; font-weight: 600; margin-bottom: 12px; }
+  .body-text { font-size: 11px; line-height: 1.7; margin-bottom: 12px; }
+  .appointment-box { background: #EFF6FF; border: 2px solid #2563EB; border-radius: 8px; padding: 16px; margin: 20px 0; }
+  .appointment-title { font-size: 12px; font-weight: 700; color: #2563EB; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+  .appointment-row { display: flex; gap: 8px; margin-bottom: 6px; }
+  .appointment-label { font-size: 10px; font-weight: 700; color: #64748B; width: 120px; flex-shrink: 0; }
+  .appointment-value { font-size: 10px; font-weight: 600; color: #0F172A; }
+  .docs-list { margin: 16px 0; }
+  .docs-list li { font-size: 10px; margin-bottom: 4px; padding-left: 12px; position: relative; }
+  .docs-list li::before { content: "•"; position: absolute; left: 0; color: #2563EB; }
+  .footer { display: flex; align-items: flex-end; justify-content: space-between; border-top: 1px solid #E2E8F0; padding-top: 16px; margin-top: 32px; }
+  .sig-block { text-align: center; }
+  .sig-img { height: 40px; object-fit: contain; margin-bottom: 4px; }
+  .sig-line { border-top: 1px solid #0F172A; width: 120px; margin: 0 auto 3px; }
+  .sig-label { font-size: 8px; color: #64748B; }
+  .qr-block { text-align: right; }
+  .qr-block img { width: 64px; height: 64px; }
+  .doc-ref { font-family: monospace; font-size: 8px; color: #64748B; margin-top: 2px; }
+  .generated-at { font-size: 7px; color: #94A3B8; }
+  .warning-box { background: #FFF7ED; border: 1px solid #FED7AA; border-radius: 6px; padding: 10px; margin: 16px 0; font-size: 10px; color: #92400E; }
+</style>
+</head>
+<body>
+<div class="page">
+  <!-- Header -->
+  <div class="header">
+    {{if .LogoURL}}<img src="{{.LogoURL}}" alt="School logo" />{{end}}
+    <div>
+      <div class="school-name">{{.SchoolName}}</div>
+      <div class="school-motto">{{.SchoolMotto}}</div>
+      <div class="school-contact">{{.SchoolAddress}} | {{.SchoolPhone}} | {{.SchoolEmail}}</div>
+    </div>
+  </div>
+
+  <div class="doc-title">Appointment Letter</div>
+
+  <div class="ref-line">Ref: <span>{{.DocRef}}</span></div>
+  <div class="date-line">Date: {{formatDate .GeneratedAt}}</div>
+
+  <div class="salutation">Dear {{.ParentName}},</div>
+
+  <p class="body-text">
+    Thank you for submitting an application for admission on behalf of <strong>{{.ChildName}}</strong> to the
+    <strong>{{.Division}}</strong> division of {{.SchoolName}}. We are pleased to confirm receipt of your application
+    (Reference: <strong style="font-family:monospace">{{.ApplicationRef}}</strong>).
+  </p>
+
+  <p class="body-text">
+    You are hereby invited to visit the school for an assessment and interview. Please find your appointment details below:
+  </p>
+
+  <!-- Appointment box -->
+  <div class="appointment-box">
+    <div class="appointment-title">📅 Your Appointment Details</div>
+    <div class="appointment-row"><span class="appointment-label">Applicant Name:</span><span class="appointment-value">{{.ChildName}}</span></div>
+    <div class="appointment-row"><span class="appointment-label">Appointment Date:</span><span class="appointment-value">{{formatDate .AppointmentDate}}</span></div>
+    <div class="appointment-row"><span class="appointment-label">Appointment Time:</span><span class="appointment-value">{{.AppointmentTime}}</span></div>
+    <div class="appointment-row"><span class="appointment-label">Division:</span><span class="appointment-value">{{.Division}}</span></div>
+    <div class="appointment-row"><span class="appointment-label">Venue:</span><span class="appointment-value">{{.SchoolAddress}}</span></div>
+  </div>
+
+  <p class="body-text"><strong>Please bring the following documents on the day of your appointment:</strong></p>
+  <ul class="docs-list">
+    {{range .DocumentsList}}
+    <li>{{.}}</li>
+    {{end}}
+  </ul>
+
+  <div class="warning-box">
+    ⚠️ <strong>Important:</strong> Please arrive at least 15 minutes before your scheduled appointment time. If you are unable to attend, please contact the school to reschedule. You may reschedule through your parent portal.
+  </div>
+
+  {{if .SchoolDirections}}
+  <p class="body-text"><strong>Directions to the school:</strong><br/>{{.SchoolDirections}}</p>
+  {{end}}
+
+  <p class="body-text">We look forward to meeting you and {{.ChildName}}. Should you have any questions, please do not hesitate to contact us.</p>
+
+  <p class="body-text">Yours sincerely,</p>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="sig-block">
+      {{if .SignatureURL}}<img class="sig-img" src="{{.SignatureURL}}" alt="Authorised signature" />{{end}}
+      <div class="sig-line"></div>
+      <div class="sig-label">Admissions Office</div>
+      <div class="sig-label">{{.SchoolName}}</div>
+    </div>
+    <div class="sig-block">
+      {{if .StampURL}}<img class="sig-img" src="{{.StampURL}}" alt="Official stamp" />{{end}}
+      <div class="sig-label">Official Stamp</div>
+    </div>
+    <div class="qr-block">
+      {{if .QRCodeBase64}}<img src="data:image/png;base64,{{.QRCodeBase64}}" alt="Verification QR code" />{{end}}
+      <div class="doc-ref">Ref: {{.DocRef}}</div>
+      <div class="generated-at">Generated: {{formatDateTime .GeneratedAt}}</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

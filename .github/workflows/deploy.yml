@@ -1,0 +1,57 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+# Only one deploy runs at a time; new push cancels an in-progress deploy.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  # CI must pass before deploy runs
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  deploy-production:
+    name: Deploy → Production (Railway)
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service school-platform --environment production --detach
+
+      - name: Wait for deployment health check
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          APP_BASE_URL: ${{ secrets.PRODUCTION_APP_URL }}
+        run: |
+          echo "Waiting 30s for Railway to spin up the new deployment..."
+          sleep 30
+          for i in 1 2 3 4 5; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$APP_BASE_URL/health")
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ Health check passed (attempt $i)"
+              exit 0
+            fi
+            echo "⏳ Health check attempt $i — got HTTP $STATUS, retrying in 10s..."
+            sleep 10
+          done
+          echo "❌ Health check failed after 5 attempts"
+          exit 1
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Production deployment failed — check Railway dashboard"

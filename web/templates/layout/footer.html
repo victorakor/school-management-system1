@@ -1,0 +1,54 @@
+{{define "footer"}}
+<footer class="bg-primary text-white mt-24" role="contentinfo">
+  <div class="max-w-[1440px] mx-auto px-6 lg:px-12 py-16">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+
+      <!-- Brand -->
+      <div class="lg:col-span-2">
+        <div class="flex items-center gap-3 mb-4">
+          {{if .SchoolLogoURL}}
+          <img src="{{.SchoolLogoURL}}" alt="{{.SchoolName}} logo" class="h-12 w-12 object-contain rounded-xl bg-white/10 p-1" width="48" height="48" />
+          {{end}}
+          <div>
+            <p class="font-display font-bold text-xl">{{.SchoolName}}</p>
+            <p class="text-white/60 text-sm">{{.SchoolMotto}}</p>
+          </div>
+        </div>
+        <p class="text-white/70 text-sm leading-relaxed max-w-sm">{{.SchoolAddress}}</p>
+        <div class="mt-4 space-y-1">
+          <p class="text-white/70 text-sm">📞 {{.SchoolPhone}}</p>
+          <p class="text-white/70 text-sm">✉️ {{.SchoolEmail}}</p>
+        </div>
+      </div>
+
+      <!-- Quick Links -->
+      <div>
+        <h3 class="font-display font-semibold text-sm uppercase tracking-widest text-white/50 mb-4">Quick Links</h3>
+        <ul class="space-y-2" role="list">
+          <li><a href="/" class="text-white/70 hover:text-white text-sm transition-colors">Home</a></li>
+          <li><a href="/about" class="text-white/70 hover:text-white text-sm transition-colors">About Us</a></li>
+          <li><a href="/admissions" class="text-white/70 hover:text-white text-sm transition-colors">Admissions</a></li>
+          <li><a href="/feed" class="text-white/70 hover:text-white text-sm transition-colors">Activities</a></li>
+          <li><a href="/verify" class="text-white/70 hover:text-white text-sm transition-colors">Verify Document</a></li>
+        </ul>
+      </div>
+
+      <!-- Divisions -->
+      <div>
+        <h3 class="font-display font-semibold text-sm uppercase tracking-widest text-white/50 mb-4">Divisions</h3>
+        <ul class="space-y-2" role="list">
+          <li><a href="/divisions/nursery" class="text-white/70 hover:text-white text-sm transition-colors">Nursery School</a></li>
+          <li><a href="/divisions/primary" class="text-white/70 hover:text-white text-sm transition-colors">Primary School</a></li>
+          <li><a href="/divisions/secondary" class="text-white/70 hover:text-white text-sm transition-colors">Secondary School</a></li>
+          <li><a href="/login" class="text-white/70 hover:text-white text-sm transition-colors">Staff Portal</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="mt-12 pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <p class="text-white/40 text-xs">© {{.CurrentYear}} {{.SchoolName}}. All rights reserved.</p>
+      <a href="/verify" class="text-white/40 hover:text-white/70 text-xs transition-colors">Verify a Document</a>
+    </div>
+  </div>
+</footer>
+{{end}}

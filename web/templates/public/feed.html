@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>School Activities — {{.SchoolName}}</title>
+  <meta name="description" content="See what's happening at {{.SchoolName}} — photos and videos from school activities." />
+  <meta name="csrf-token" content="{{.CSRFToken}}" />
+  <link rel="stylesheet" href="/static/css/app.css" />
+</head>
+<body class="bg-background text-text-primary font-body antialiased overflow-x-hidden">
+
+  <!-- Nav (same as index) -->
+  <header id="site-nav" class="fixed top-0 left-0 right-0 z-50 bg-white border-b border-neutral-100 shadow-sm" role="banner">
+    <nav class="max-w-[1440px] mx-auto px-6 lg:px-12 h-16 flex items-center justify-between" aria-label="Main navigation">
+      <a href="/" class="flex items-center gap-3" aria-label="{{.SchoolName}} home">
+        {{if .SchoolLogoURL}}<img src="{{.SchoolLogoURL}}" alt="" class="h-10 w-10 object-contain rounded-lg" width="40" height="40" aria-hidden="true" />{{end}}
+        <span class="font-display font-bold text-lg text-primary hidden sm:block">{{.SchoolName}}</span>
+      </a>
+      <div class="flex items-center gap-3">
+        <a href="/login" class="hidden sm:inline-flex text-sm font-medium text-text-secondary hover:text-primary transition-colors min-h-[44px] items-center">Portal</a>
+        <a href="/admissions" class="inline-flex items-center gap-2 bg-accent text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-accent/90 transition-all min-h-[44px]">Apply Now</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main-content" class="pt-16">
+    <!-- Hero -->
+    <section class="bg-primary py-16 px-6 text-center" aria-labelledby="feed-hero-heading">
+      <div class="max-w-2xl mx-auto">
+        <p class="text-white/60 text-sm font-semibold uppercase tracking-widest mb-3">School Life</p>
+        <h1 id="feed-hero-heading" class="font-display font-bold text-white mb-4" style="font-size: clamp(1.75rem, 4vw, 2.5rem);">Activities & Events</h1>
+        <p class="text-white/70 text-lg">A glimpse into the vibrant life at {{.SchoolName}}</p>
+      </div>
+    </section>
+
+    <!-- Filter bar -->
+    <div class="sticky top-16 z-20 bg-white border-b border-neutral-100 py-3 px-6" role="navigation" aria-label="Filter activities">
+      <div class="max-w-[1440px] mx-auto flex items-center gap-3 overflow-x-auto pb-1 scrollbar-hide">
+        <button class="feed-filter-btn flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all min-h-[44px] bg-accent text-white active" data-division="">All Activities</button>
+        <button class="feed-filter-btn flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all min-h-[44px] bg-white text-text-secondary border border-neutral-200 hover:border-accent hover:text-accent" data-division="NURSERY">Nursery</button>
+        <button class="feed-filter-btn flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all min-h-[44px] bg-white text-text-secondary border border-neutral-200 hover:border-accent hover:text-accent" data-division="PRIMARY">Primary</button>
+        <button class="feed-filter-btn flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all min-h-[44px] bg-white text-text-secondary border border-neutral-200 hover:border-accent hover:text-accent" data-division="SECONDARY">Secondary</button>
+      </div>
+    </div>
+
+    <!-- Feed grid -->
+    <div class="max-w-[1440px] mx-auto px-6 lg:px-12 py-10">
+      <div id="feed-grid" class="feed-masonry" aria-label="Activity posts" aria-live="polite">
+        <!-- Populated by feed.js -->
+        <!-- Skeleton loading state -->
+        <div class="skeleton h-64 rounded-2xl mb-4 break-inside-avoid"></div>
+        <div class="skeleton h-48 rounded-2xl mb-4 break-inside-avoid"></div>
+        <div class="skeleton h-72 rounded-2xl mb-4 break-inside-avoid"></div>
+        <div class="skeleton h-56 rounded-2xl mb-4 break-inside-avoid"></div>
+        <div class="skeleton h-64 rounded-2xl mb-4 break-inside-avoid"></div>
+        <div class="skeleton h-48 rounded-2xl mb-4 break-inside-avoid"></div>
+      </div>
+
+      <!-- Infinite scroll sentinel -->
+      <div id="feed-sentinel" class="h-4" aria-hidden="true"></div>
+
+      <!-- Loading indicator -->
+      <div id="feed-loading" class="flex justify-center py-8 hidden">
+        <svg class="w-6 h-6 animate-spin text-accent" fill="none" viewBox="0 0 24 24" aria-label="Loading more posts"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+      </div>
+    </div>
+  </main>
+
+  <!-- Lightbox -->
+  <div id="feed-lightbox" class="fixed inset-0 z-50 bg-black/90 hidden flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Media viewer">
+    <button id="lightbox-close" class="absolute top-4 right-4 p-3 text-white/70 hover:text-white transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center" aria-label="Close lightbox">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+    <button id="lightbox-prev" class="absolute left-4 top-1/2 -translate-y-1/2 p-3 text-white/70 hover:text-white transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center" aria-label="Previous image" style="display:none">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    </button>
+    <div id="lightbox-media" class="flex items-center justify-center max-w-5xl max-h-[90vh] px-16"></div>
+    <button id="lightbox-next" class="absolute right-4 top-1/2 -translate-y-1/2 p-3 text-white/70 hover:text-white transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center" aria-label="Next image" style="display:none">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+    </button>
+    <p id="lightbox-caption" class="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/80 text-sm max-w-lg text-center px-4"></p>
+  </div>
+
+  <script type="module" src="/static/js/public/feed.js"></script>
+</body>
+</html>

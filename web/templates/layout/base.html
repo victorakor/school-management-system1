@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  {{template "head" .}}
+</head>
+<body class="bg-background text-text-primary font-body antialiased">
+  {{template "nav" .}}
+  <main id="main-content">
+    {{template "content" .}}
+  </main>
+  {{template "footer" .}}
+  <script type="module" src="/static/js/shared/utils.js"></script>
+  <script type="module" src="/static/js/shared/api.js"></script>
+  {{template "scripts" .}}
+</body>
+</html>

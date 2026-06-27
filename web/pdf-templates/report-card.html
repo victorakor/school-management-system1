@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Arial', sans-serif; font-size: 11px; color: #0F172A; background: white; }
+  .page { width: 210mm; min-height: 297mm; padding: 12mm 14mm; position: relative; }
+
+  /* Watermark */
+  .watermark {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg);
+    font-size: 80px; font-weight: 900; color: rgba(15,37,87,0.04);
+    white-space: nowrap; pointer-events: none; z-index: 0;
+  }
+
+  /* Header */
+  .header { display: flex; align-items: center; gap: 16px; border-bottom: 3px solid #0F2557; padding-bottom: 12px; margin-bottom: 12px; }
+  .header img.logo { width: 64px; height: 64px; object-fit: contain; }
+  .header .school-info { flex: 1; text-align: center; }
+  .header .school-name { font-size: 18px; font-weight: 900; color: #0F2557; text-transform: uppercase; letter-spacing: 1px; }
+  .header .school-motto { font-size: 10px; color: #64748B; font-style: italic; margin-top: 2px; }
+  .header .school-contact { font-size: 9px; color: #64748B; margin-top: 4px; }
+  .report-title { font-size: 13px; font-weight: 700; color: #2563EB; text-align: center; margin: 8px 0; text-transform: uppercase; letter-spacing: 2px; }
+
+  /* Student info */
+  .student-info { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; margin-bottom: 12px; }
+  .info-item { }
+  .info-label { font-size: 8px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; }
+  .info-value { font-size: 10px; font-weight: 600; color: #0F172A; margin-top: 1px; }
+
+  /* Subject table */
+  table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 9.5px; }
+  thead tr { background: #0F2557; color: white; }
+  thead th { padding: 6px 5px; text-align: left; font-weight: 700; font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.3px; }
+  tbody tr:nth-child(even) { background: #F8FAFC; }
+  tbody tr:hover { background: #EFF6FF; }
+  tbody td { padding: 5px; border-bottom: 1px solid #E2E8F0; }
+  .grade-A { color: #10B981; font-weight: 700; }
+  .grade-B { color: #2563EB; font-weight: 700; }
+  .grade-C { color: #F59E0B; font-weight: 700; }
+  .grade-D { color: #F97316; font-weight: 700; }
+  .grade-F { color: #F43F5E; font-weight: 700; }
+
+  /* Summary */
+  .summary { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .summary-box { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; padding: 8px; text-align: center; }
+  .summary-value { font-size: 18px; font-weight: 900; color: #0F2557; }
+  .summary-label { font-size: 8px; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+  /* Remarks */
+  .remarks-section { margin-bottom: 12px; }
+  .remark-box { border: 1px solid #E2E8F0; border-radius: 6px; padding: 8px; margin-bottom: 6px; }
+  .remark-label { font-size: 8px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .remark-text { font-size: 10px; color: #0F172A; line-height: 1.5; }
+
+  /* Footer */
+  .doc-footer { display: flex; align-items: flex-end; justify-content: space-between; border-top: 2px solid #E2E8F0; padding-top: 10px; margin-top: 12px; }
+  .signature-block { text-align: center; }
+  .signature-img { height: 40px; object-fit: contain; margin-bottom: 4px; }
+  .signature-line { border-top: 1px solid #0F172A; width: 120px; margin: 0 auto 2px; }
+  .signature-label { font-size: 8px; color: #64748B; }
+  .qr-block { text-align: right; }
+  .qr-block img { width: 60px; height: 60px; }
+  .doc-ref { font-family: 'Courier New', monospace; font-size: 8px; color: #64748B; margin-top: 2px; }
+  .generated-at { font-size: 7px; color: #94A3B8; margin-top: 1px; }
+
+  /* Next term */
+  .next-term { background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 6px; padding: 8px; margin-bottom: 10px; display: flex; gap: 16px; }
+  .next-term-item { }
+  .next-term-label { font-size: 8px; font-weight: 700; color: #2563EB; text-transform: uppercase; }
+  .next-term-value { font-size: 10px; font-weight: 600; color: #0F172A; margin-top: 1px; }
+</style>
+</head>
+<body>
+<div class="page">
+  {{if .WatermarkEnabled}}<div class="watermark">{{.SchoolName}}</div>{{end}}
+
+  <!-- Header -->
+  <div class="header">
+    {{if .LogoURL}}<img class="logo" src="{{.LogoURL}}" alt="School logo" />{{end}}
+    <div class="school-info">
+      <div class="school-name">{{.SchoolName}}</div>
+      <div class="school-motto">{{.SchoolMotto}}</div>
+      <div class="school-contact">{{.SchoolAddress}} | {{.SchoolPhone}} | {{.SchoolEmail}}</div>
+    </div>
+  </div>
+  <div class="report-title">Student Report Card — {{.TermName}} · {{.SessionName}}</div>
+
+  <!-- Student Info -->
+  <div class="student-info">
+    <div class="info-item"><div class="info-label">Student Name</div><div class="info-value">{{.StudentName}}</div></div>
+    <div class="info-item"><div class="info-label">Admission ID</div><div class="info-value" style="font-family:monospace">{{.AdmissionID}}</div></div>
+    <div class="info-item"><div class="info-label">Class</div><div class="info-value">{{.ClassName}}</div></div>
+    <div class="info-item"><div class="info-label">Division</div><div class="info-value">{{.Division}}</div></div>
+    <div class="info-item"><div class="info-label">Gender</div><div class="info-value">{{.Gender}}</div></div>
+    <div class="info-item"><div class="info-label">Date of Birth</div><div class="info-value">{{formatDate .DOB}}</div></div>
+  </div>
+
+  <!-- Subject Table -->
+  <table>
+    <thead>
+      <tr>
+        <th>Subject</th>
+        <th>CA Score</th>
+        <th>Exam Score</th>
+        <th>Total</th>
+        <th>Grade</th>
+        <th>Class Pos.</th>
+        <th>Class Avg</th>
+        <th>Highest</th>
+        <th>Lowest</th>
+        <th>Remark</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Subjects}}
+      <tr>
+        <td style="font-weight:600">{{.SubjectName}}</td>
+        <td>{{.CATotal}}</td>
+        <td>{{.ExamScore}}</td>
+        <td style="font-weight:700">{{.Total}}</td>
+        <td class="grade-{{.Grade}}">{{.Grade}}</td>
+        <td>{{ordinal .SubjectPosition}}</td>
+        <td>{{.ClassAvg}}</td>
+        <td>{{.HighestScore}}</td>
+        <td>{{.LowestScore}}</td>
+        <td style="font-style:italic;color:#64748B">{{.TeacherRemark}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+
+  <!-- Summary -->
+  <div class="summary">
+    <div class="summary-box">
+      <div class="summary-value">{{.TotalMarks}}</div>
+      <div class="summary-label">Total Marks</div>
+    </div>
+    <div class="summary-box">
+      <div class="summary-value">{{.Average}}%</div>
+      <div class="summary-label">Overall Average</div>
+    </div>
+    <div class="summary-box">
+      <div class="summary-value">{{ordinal .ClassPosition}}</div>
+      <div class="summary-label">Class Position (of {{.TotalStudents}})</div>
+    </div>
+    <div class="summary-box">
+      <div class="summary-value" style="color:#10B981">{{.SubjectsPassed}}</div>
+      <div class="summary-label">Subjects Passed</div>
+    </div>
+    <div class="summary-box">
+      <div class="summary-value" style="color:#F43F5E">{{.SubjectsFailed}}</div>
+      <div class="summary-label">Subjects Failed</div>
+    </div>
+    <div class="summary-box">
+      <div class="summary-value">{{.AttendancePresent}}/{{.AttendanceTotal}}</div>
+      <div class="summary-label">Days Present</div>
+    </div>
+  </div>
+
+  <!-- Remarks -->
+  <div class="remarks-section">
+    <div class="remark-box">
+      <div class="remark-label">Class Teacher's Remark</div>
+      <div class="remark-text">{{.ClassTeacherRemark}}</div>
+    </div>
+    <div class="remark-box">
+      <div class="remark-label">{{if eq .Division "SECONDARY"}}Principal's Remark{{else}}Head Teacher's Remark{{end}}</div>
+      <div class="remark-text">{{.AdminRemark}}</div>
+    </div>
+  </div>
+
+  <!-- Next Term -->
+  <div class="next-term">
+    <div class="next-term-item">
+      <div class="next-term-label">Next Term Begins</div>
+      <div class="next-term-value">{{formatDate .NextResumptionDate}}</div>
+    </div>
+    <div class="next-term-item">
+      <div class="next-term-label">School Reopens</div>
+      <div class="next-term-value">{{formatDate .NextResumptionDate}}</div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="doc-footer">
+    <div class="signature-block">
+      {{if .SignatureURL}}<img class="signature-img" src="{{.SignatureURL}}" alt="Authorised signature" />{{end}}
+      <div class="signature-line"></div>
+      <div class="signature-label">{{if eq .Division "SECONDARY"}}Principal{{else}}Head Teacher{{end}}</div>
+    </div>
+    <div class="signature-block">
+      {{if .StampURL}}<img class="signature-img" src="{{.StampURL}}" alt="Official school stamp" />{{end}}
+      <div class="signature-label">Official Stamp</div>
+    </div>
+    <div class="qr-block">
+      {{if .QRCodeBase64}}<img src="data:image/png;base64,{{.QRCodeBase64}}" alt="Verification QR code" />{{end}}
+      <div class="doc-ref">Ref: {{.DocRef}}</div>
+      <div class="generated-at">Generated: {{formatDateTime .GeneratedAt}}</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

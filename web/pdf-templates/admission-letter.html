@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 11px; color: #0F172A; background: white; }
+  .page { width: 210mm; min-height: 297mm; padding: 16mm 18mm; position: relative; }
+  /* Watermark */
+  .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg);
+    font-size: 80px; font-weight: 900; color: rgba(15,37,87,0.05); text-transform: uppercase;
+    letter-spacing: 10px; pointer-events: none; white-space: nowrap; z-index: 0; }
+  .content { position: relative; z-index: 1; }
+  /* Header */
+  .header { display: flex; align-items: center; gap: 16px; border-bottom: 3px solid #0F2557; padding-bottom: 14px; margin-bottom: 20px; }
+  .header img { width: 72px; height: 72px; object-fit: contain; }
+  .school-name { font-size: 20px; font-weight: 900; color: #0F2557; text-transform: uppercase; }
+  .school-motto { font-size: 10px; color: #64748B; font-style: italic; margin-top: 3px; }
+  .school-contact { font-size: 9px; color: #64748B; margin-top: 5px; }
+  /* Title */
+  .doc-title { font-size: 15px; font-weight: 700; color: #0F2557; text-align: center;
+    text-transform: uppercase; letter-spacing: 2px; margin: 24px 0 6px; }
+  .doc-subtitle { font-size: 10px; color: #64748B; text-align: center; margin-bottom: 24px; }
+  /* Meta line */
+  .ref-line { font-size: 10px; color: #64748B; margin-bottom: 6px; }
+  .ref-line span { font-family: monospace; font-weight: 700; color: #0F172A; }
+  .date-line { font-size: 10px; color: #64748B; margin-bottom: 24px; }
+  /* Body */
+  .salutation { font-size: 11px; font-weight: 600; margin-bottom: 12px; }
+  .body-text { font-size: 11px; line-height: 1.75; margin-bottom: 12px; }
+  /* Student info box */
+  .student-box { background: #F0FDF4; border: 2px solid #10B981; border-radius: 8px; padding: 16px; margin: 20px 0; }
+  .student-title { font-size: 11px; font-weight: 700; color: #065F46; text-transform: uppercase;
+    letter-spacing: 1px; margin-bottom: 12px; }
+  .student-row { display: flex; margin-bottom: 7px; }
+  .student-label { font-size: 10px; font-weight: 700; color: #64748B; width: 150px; flex-shrink: 0; }
+  .student-value { font-size: 10px; font-weight: 600; color: #0F172A; }
+  .admission-id { font-family: monospace; font-size: 13px; font-weight: 900; color: #0F2557;
+    background: #EFF6FF; padding: 4px 10px; border-radius: 4px; border: 1px solid #BFDBFE; }
+  /* Instructions */
+  .instructions-title { font-size: 11px; font-weight: 700; color: #0F2557; margin: 20px 0 8px; text-transform: uppercase; }
+  .instructions-list { padding-left: 0; list-style: none; }
+  .instructions-list li { font-size: 10px; line-height: 1.6; margin-bottom: 5px; padding-left: 14px; position: relative; }
+  .instructions-list li::before { content: "✓"; position: absolute; left: 0; color: #10B981; font-weight: 700; }
+  /* Congratulations banner */
+  .congrats-banner { background: linear-gradient(135deg, #0F2557 0%, #2563EB 100%); color: white;
+    border-radius: 8px; padding: 14px 18px; margin: 20px 0; text-align: center; }
+  .congrats-banner .title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .congrats-banner .subtitle { font-size: 10px; opacity: 0.85; }
+  /* Footer */
+  .footer { display: flex; align-items: flex-end; justify-content: space-between;
+    border-top: 1px solid #E2E8F0; padding-top: 16px; margin-top: 36px; }
+  .sig-block { text-align: center; }
+  .sig-img { height: 44px; object-fit: contain; display: block; margin: 0 auto 4px; }
+  .sig-line { border-top: 1.5px solid #0F172A; width: 130px; margin: 0 auto 4px; }
+  .sig-name { font-size: 10px; font-weight: 700; color: #0F172A; }
+  .sig-label { font-size: 8px; color: #64748B; }
+  .stamp-block { text-align: center; }
+  .stamp-img { height: 64px; object-fit: contain; opacity: 0.85; }
+  /* QR + DocRef */
+  .qr-block { text-align: right; }
+  .qr-block img { width: 68px; height: 68px; }
+  .doc-ref { font-family: monospace; font-size: 8px; color: #64748B; margin-top: 3px; }
+  .generated-at { font-size: 7px; color: #94A3B8; }
+  /* Print */
+  @media print {
+    body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    .page { padding: 12mm 16mm; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  {{if .WatermarkEnabled}}<div class="watermark">{{.SchoolName}}</div>{{end}}
+  <div class="content">
+
+  <!-- Header -->
+  <div class="header">
+    {{if .LogoURL}}<img src="{{.LogoURL}}" alt="School logo" />{{end}}
+    <div>
+      <div class="school-name">{{.SchoolName}}</div>
+      <div class="school-motto">{{.SchoolMotto}}</div>
+      <div class="school-contact">{{.SchoolAddress}} | {{.SchoolPhone}} | {{.SchoolEmail}}</div>
+    </div>
+  </div>
+
+  <!-- Congratulations Banner -->
+  <div class="congrats-banner">
+    <div class="title">🎉 Offer of Admission</div>
+    <div class="subtitle">We are delighted to offer a place at {{.SchoolName}}</div>
+  </div>
+
+  <!-- Document Title -->
+  <div class="doc-title">Admission Letter</div>
+  <div class="doc-subtitle">Official Offer of Admission — Please retain this document</div>
+
+  <!-- Ref + Date -->
+  <div class="ref-line">Ref: <span>{{.DocRef}}</span></div>
+  <div class="date-line">Date: {{formatDate .GeneratedAt}}</div>
+
+  <!-- Salutation -->
+  <div class="salutation">Dear {{.ParentName}},</div>
+
+  <div class="body-text">
+    Following the successful completion of our admissions process, we are pleased to formally offer
+    a place at <strong>{{.SchoolName}}</strong> to your child as detailed below.
+    This offer is subject to the presentation of all required original documents on the first day
+    of resumption and payment of the first-term fees before the commencement date.
+  </div>
+
+  <!-- Student Info Box -->
+  <div class="student-box">
+    <div class="student-title">Student Admission Details</div>
+    <div class="student-row">
+      <span class="student-label">Student Name:</span>
+      <span class="student-value"><strong>{{.StudentName}}</strong></span>
+    </div>
+    <div class="student-row">
+      <span class="student-label">Admission ID:</span>
+      <span class="student-value"><span class="admission-id">{{.AdmissionID}}</span></span>
+    </div>
+    <div class="student-row">
+      <span class="student-label">Division:</span>
+      <span class="student-value">{{.Division}}</span>
+    </div>
+    <div class="student-row">
+      <span class="student-label">Class Admitted Into:</span>
+      <span class="student-value">{{.ClassName}}</span>
+    </div>
+    <div class="student-row">
+      <span class="student-label">Academic Session:</span>
+      <span class="student-value">{{.SessionName}}</span>
+    </div>
+    <div class="student-row">
+      <span class="student-label">Resumption Date:</span>
+      <span class="student-value"><strong>{{.ResumptionDate}}</strong></span>
+    </div>
+  </div>
+
+  <div class="body-text">
+    Your child's <strong>Admission ID ({{.AdmissionID}})</strong> is permanent and must be quoted
+    in all correspondence with the school. Please ensure this letter is presented at the school
+    office on resumption day along with the original copies of all required documents.
+  </div>
+
+  <!-- Instructions -->
+  <div class="instructions-title">Resumption Requirements</div>
+  <ul class="instructions-list">
+    <li>Present this admission letter (original) to the school office on arrival</li>
+    <li>Bring two (2) recent passport photographs of the student</li>
+    <li>Present original birth certificate or sworn declaration of age</li>
+    <li>Present original previous school report card (if applicable)</li>
+    <li>Evidence of full payment of first-term fees (receipt from the Bursar's office)</li>
+    <li>Completed medical history form (available at the school office)</li>
+  </ul>
+
+  <div class="body-text" style="margin-top: 16px;">
+    We welcome {{.StudentName}} to the {{.SchoolName}} family and look forward to providing an
+    excellent educational experience. Should you have any questions, please do not hesitate to
+    contact the school office.
+  </div>
+
+  <div class="body-text">Yours faithfully,</div>
+
+  <!-- Footer: Signatures + Stamp + QR -->
+  <div class="footer">
+    <div class="sig-block">
+      {{if .SignatureURL}}<img class="sig-img" src="{{.SignatureURL}}" alt="Signature" />{{end}}
+      <div class="sig-line"></div>
+      <div class="sig-name">{{.SignatoryName}}</div>
+      <div class="sig-label">{{.SignatoryTitle}}</div>
+      <div class="sig-label">{{.SchoolName}}</div>
+    </div>
+
+    <div class="stamp-block">
+      {{if .StampURL}}<img class="stamp-img" src="{{.StampURL}}" alt="Official stamp" />{{end}}
+    </div>
+
+    <div class="qr-block">
+      {{if .QRCode}}<img src="{{.QRCode}}" alt="Verification QR code" />{{end}}
+      <div class="doc-ref">Ref: {{.DocRef}}</div>
+      <div class="generated-at">Generated: {{formatDate .GeneratedAt}}</div>
+      <div class="generated-at" style="color:#2563EB; font-size: 7px;">Scan QR to verify authenticity</div>
+    </div>
+  </div>
+
+  </div><!-- /content -->
+</div>
+</body>
+</html>

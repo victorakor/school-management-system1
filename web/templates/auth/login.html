@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — {{.SchoolName}}</title>
+  <meta name="csrf-token" content="{{.CSRFToken}}" />
+  <link rel="stylesheet" href="/static/css/app.css" />
+</head>
+<body class="bg-background text-text-primary font-body antialiased min-h-screen flex">
+
+  <!-- Left panel — branding -->
+  <div class="hidden lg:flex lg:w-1/2 bg-primary relative overflow-hidden flex-col justify-between p-12" aria-hidden="true">
+    <div class="absolute inset-0 bg-gradient-to-br from-primary via-primary to-accent/30"></div>
+    <div class="absolute top-20 right-20 w-64 h-64 bg-accent/10 rounded-full blur-3xl"></div>
+    <div class="absolute bottom-20 left-20 w-48 h-48 bg-gold/10 rounded-full blur-3xl"></div>
+    <div class="relative z-10">
+      <div class="flex items-center gap-3 mb-16">
+        {{if .SchoolLogoURL}}<img src="{{.SchoolLogoURL}}" alt="" class="h-12 w-12 object-contain rounded-xl bg-white/10 p-1" width="48" height="48" />{{end}}
+        <span class="font-display font-bold text-xl text-white">{{.SchoolName}}</span>
+      </div>
+      <h1 class="font-display font-bold text-white mb-4" style="font-size: clamp(1.75rem, 3vw, 2.5rem); line-height: 1.2;">Welcome back to the portal</h1>
+      <p class="text-white/70 text-lg leading-relaxed">Access your dashboard, results, timetables, and more — all in one place.</p>
+    </div>
+    <p class="relative z-10 text-white/40 text-sm">{{.SchoolMotto}}</p>
+  </div>
+
+  <!-- Right panel — form -->
+  <div class="flex-1 flex items-center justify-center p-6 lg:p-12">
+    <div class="w-full max-w-md">
+
+      <!-- Mobile logo -->
+      <div class="flex items-center gap-3 mb-8 lg:hidden">
+        {{if .SchoolLogoURL}}<img src="{{.SchoolLogoURL}}" alt="" class="h-10 w-10 object-contain rounded-lg" width="40" height="40" aria-hidden="true" />{{end}}
+        <span class="font-display font-bold text-lg text-primary">{{.SchoolName}}</span>
+      </div>
+
+      <h2 class="font-display font-bold text-2xl text-primary mb-2">Sign in to your account</h2>
+      <p class="text-text-secondary mb-8">Enter your email and password to continue.</p>
+
+      <!-- Error banner -->
+      <div id="login-error" class="hidden mb-6 p-4 bg-danger/10 border border-danger/20 rounded-xl text-danger text-sm" role="alert" aria-live="polite"></div>
+
+      <form id="login-form" novalidate class="space-y-5">
+        <!-- Email -->
+        <div class="form-group">
+          <label for="email" class="block text-sm font-semibold text-text-primary mb-2">Email address</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            autocomplete="email"
+            required
+            class="w-full px-4 py-3 rounded-xl border border-neutral-200 bg-white text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all placeholder:text-text-secondary/50"
+            placeholder="you@example.com"
+          />
+          <p class="form-error hidden mt-1.5 text-xs text-danger" role="alert"></p>
+        </div>
+
+        <!-- Password -->
+        <div class="form-group">
+          <div class="flex items-center justify-between mb-2">
+            <label for="password" class="block text-sm font-semibold text-text-primary">Password</label>
+          </div>
+          <div class="relative">
+            <input
+              type="password"
+              id="password"
+              name="password"
+              autocomplete="current-password"
+              required
+              class="w-full px-4 py-3 pr-12 rounded-xl border border-neutral-200 bg-white text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all placeholder:text-text-secondary/50"
+              placeholder="••••••••"
+            />
+            <button type="button" id="toggle-password" class="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-text-secondary hover:text-primary transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center" aria-label="Toggle password visibility">
+              <svg class="w-4 h-4" id="eye-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            </button>
+          </div>
+          <p class="form-error hidden mt-1.5 text-xs text-danger" role="alert"></p>
+        </div>
+
+        <button type="submit" id="login-btn" class="w-full flex items-center justify-center gap-2 bg-accent text-white font-semibold py-3.5 rounded-xl hover:bg-accent/90 transition-all duration-200 min-h-[52px] disabled:opacity-50 disabled:cursor-not-allowed">
+          <span id="login-btn-text">Sign In</span>
+          <svg id="login-spinner" class="w-5 h-5 animate-spin hidden" fill="none" viewBox="0 0 24 24" aria-hidden="true"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+        </button>
+      </form>
+
+      <p class="mt-6 text-center text-sm text-text-secondary">
+        Parent applying for the first time?
+        <a href="/register" class="text-accent font-semibold hover:underline">Create an account</a>
+      </p>
+
+      <p class="mt-4 text-center">
+        <a href="/" class="text-xs text-text-secondary hover:text-primary transition-colors">← Back to website</a>
+      </p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { api } from '/static/js/shared/api.js';
+
+    const form = document.getElementById('login-form');
+    const btn = document.getElementById('login-btn');
+    const btnText = document.getElementById('login-btn-text');
+    const spinner = document.getElementById('login-spinner');
+    const errorBanner = document.getElementById('login-error');
+    const togglePwd = document.getElementById('toggle-password');
+    const pwdInput = document.getElementById('password');
+
+    togglePwd.addEventListener('click', () => {
+      const isText = pwdInput.type === 'text';
+      pwdInput.type = isText ? 'password' : 'text';
+      togglePwd.setAttribute('aria-label', isText ? 'Show password' : 'Hide password');
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorBanner.classList.add('hidden');
+
+      const email = form.email.value.trim();
+      const password = form.password.value;
+
+      if (!email || !password) {
+        errorBanner.textContent = 'Please enter your email and password.';
+        errorBanner.classList.remove('hidden');
+        return;
+      }
+
+      btn.disabled = true;
+      btnText.textContent = 'Signing in...';
+      spinner.classList.remove('hidden');
+
+      try {
+        const data = await api.post('/api/auth/login', { email, password });
+        // Redirect to portal on success
+        window.location.href = '/portal';
+      } catch (err) {
+        errorBanner.textContent = err.message || 'Login failed. Please check your credentials.';
+        errorBanner.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btnText.textContent = 'Sign In';
+        spinner.classList.add('hidden');
+      }
+    });
+  </script>
+</body>
+</html>

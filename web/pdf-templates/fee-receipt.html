@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 11px; color: #0F172A; background: white; }
+  .page { width: 148mm; min-height: 210mm; padding: 12mm 14mm; }
+  .header { display: flex; align-items: center; gap: 12px; border-bottom: 3px solid #0F2557; padding-bottom: 10px; margin-bottom: 14px; }
+  .header img { width: 56px; height: 56px; object-fit: contain; }
+  .school-name { font-size: 16px; font-weight: 900; color: #0F2557; text-transform: uppercase; }
+  .school-contact { font-size: 8px; color: #64748B; margin-top: 3px; }
+  .receipt-title { font-size: 13px; font-weight: 700; color: #10B981; text-align: center; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 14px; }
+  .receipt-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; padding: 8px; margin-bottom: 14px; }
+  .meta-label { font-size: 8px; font-weight: 700; color: #64748B; text-transform: uppercase; }
+  .meta-value { font-size: 10px; font-weight: 600; color: #0F172A; margin-top: 1px; }
+  .meta-value.mono { font-family: monospace; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+  thead tr { background: #0F2557; color: white; }
+  thead th { padding: 6px 8px; text-align: left; font-size: 9px; text-transform: uppercase; }
+  tbody td { padding: 6px 8px; border-bottom: 1px solid #E2E8F0; font-size: 10px; }
+  tbody tr:nth-child(even) { background: #F8FAFC; }
+  .totals { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; padding: 10px; margin-bottom: 12px; }
+  .total-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 10px; }
+  .total-row.grand { font-weight: 700; font-size: 12px; color: #0F2557; border-top: 1px solid #E2E8F0; padding-top: 6px; margin-top: 4px; }
+  .balance-row { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; }
+  .balance-paid { color: #10B981; }
+  .balance-owing { color: #F43F5E; }
+  .footer { display: flex; align-items: flex-end; justify-content: space-between; border-top: 1px solid #E2E8F0; padding-top: 10px; margin-top: 16px; }
+  .sig-block { text-align: center; }
+  .sig-img { height: 36px; object-fit: contain; margin-bottom: 3px; }
+  .sig-line { border-top: 1px solid #0F172A; width: 100px; margin: 0 auto 2px; }
+  .sig-label { font-size: 8px; color: #64748B; }
+  .qr-block { text-align: right; }
+  .qr-block img { width: 56px; height: 56px; }
+  .doc-ref { font-family: monospace; font-size: 7px; color: #64748B; margin-top: 2px; }
+  .generated-at { font-size: 6px; color: #94A3B8; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    {{if .LogoURL}}<img src="{{.LogoURL}}" alt="School logo" />{{end}}
+    <div>
+      <div class="school-name">{{.SchoolName}}</div>
+      <div class="school-contact">{{.SchoolAddress}} | {{.SchoolPhone}}</div>
+    </div>
+  </div>
+
+  <div class="receipt-title">✓ Official Fee Receipt</div>
+
+  <div class="receipt-meta">
+    <div><div class="meta-label">Receipt No.</div><div class="meta-value mono">{{.ReceiptRef}}</div></div>
+    <div><div class="meta-label">Payment Date</div><div class="meta-value">{{formatDate .PaymentDate}}</div></div>
+    <div><div class="meta-label">Student Name</div><div class="meta-value">{{.StudentName}}</div></div>
+    <div><div class="meta-label">Admission ID</div><div class="meta-value mono">{{.AdmissionID}}</div></div>
+    <div><div class="meta-label">Class</div><div class="meta-value">{{.ClassName}}</div></div>
+    <div><div class="meta-label">Term / Session</div><div class="meta-value">{{.TermName}} · {{.SessionName}}</div></div>
+    <div><div class="meta-label">Recorded By</div><div class="meta-value">{{.RecordedBy}}</div></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Fee Category</th>
+        <th>Amount Owed</th>
+        <th>Amount Paid</th>
+        <th>Balance</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>{{.CategoryName}}</td>
+        <td>₦{{.AmountOwed}}</td>
+        <td style="color:#10B981;font-weight:700">₦{{.AmountPaid}}</td>
+        <td style="{{if gt .BalanceAfter 0.0}}color:#F43F5E{{else}}color:#10B981{{end}};font-weight:700">₦{{.BalanceAfter}}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  {{if .Notes}}
+  <p style="font-size:9px;color:#64748B;margin-bottom:12px;font-style:italic">Note: {{.Notes}}</p>
+  {{end}}
+
+  <div class="footer">
+    <div class="sig-block">
+      {{if .StampURL}}<img class="sig-img" src="{{.StampURL}}" alt="Official stamp" />{{end}}
+      <div class="sig-line"></div>
+      <div class="sig-label">Bursar</div>
+      <div class="sig-label">{{.BursarName}}</div>
+    </div>
+    <div class="qr-block">
+      {{if .QRCodeBase64}}<img src="data:image/png;base64,{{.QRCodeBase64}}" alt="Verification QR code" />{{end}}
+      <div class="doc-ref">Ref: {{.DocRef}}</div>
+      <div class="generated-at">Generated: {{formatDateTime .GeneratedAt}}</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

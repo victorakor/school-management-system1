@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Primary School — {{.SchoolName}}</title>
+  <meta name="description" content="{{.SchoolName}} Primary School — excellence in education." />
+  <link rel="preload" href="/static/fonts/PlusJakartaSans-Bold.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/static/fonts/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/static/css/app.css" />
+  {{if .SchoolLogoURL}}<link rel="icon" type="image/png" href="{{.SchoolLogoURL}}" />{{end}}
+</head>
+<body class="bg-background text-text-primary font-body antialiased overflow-x-hidden">
+  <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:bg-accent focus:text-white focus:px-4 focus:py-2 focus:rounded-lg">Skip to main content</a>
+
+  <header id="site-nav" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300" role="banner">
+    <nav class="max-w-[1440px] mx-auto px-6 lg:px-12 h-16 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-3 flex-shrink-0">
+        {{if .SchoolLogoURL}}<img src="{{.SchoolLogoURL}}" alt="" class="h-10 w-10 object-contain rounded-lg" width="40" height="40">{{end}}
+        <span class="font-display font-bold text-lg text-white leading-tight hidden sm:block">{{.SchoolName}}</span>
+      </a>
+      <ul class="hidden lg:flex items-center gap-1">
+        <li><a href="/" class="nav-link px-4 py-2 rounded-lg text-sm font-medium text-white/80 hover:text-white transition-colors">Home</a></li>
+        <li><a href="/about" class="nav-link px-4 py-2 rounded-lg text-sm font-medium text-white/80 hover:text-white transition-colors">About</a></li>
+        <li><a href="/feed" class="nav-link px-4 py-2 rounded-lg text-sm font-medium text-white/80 hover:text-white transition-colors">Activities</a></li>
+        <li><a href="/admissions" class="nav-link px-4 py-2 rounded-lg text-sm font-medium text-white/80 hover:text-white transition-colors">Admissions</a></li>
+      </ul>
+      <div class="flex items-center gap-3">
+        <a href="/login" class="hidden sm:inline-flex text-sm font-medium text-white/80 hover:text-white transition-colors min-h-[44px] items-center">Portal</a>
+        <a href="/admissions" class="inline-flex items-center bg-white text-primary text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-white/90 transition-all shadow-sm min-h-[44px]">Apply Now</a>
+        <button id="mobile-menu-btn" class="lg:hidden p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center" aria-label="Open menu">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main-content">
+    <section class="bg-primary pt-32 pb-20 relative overflow-hidden">
+      <div class="absolute inset-0 bg-gradient-to-br from-primary to-accent/30"></div>
+      <div class="relative z-10 max-w-[1440px] mx-auto px-6 lg:px-12 text-center">
+        <span class="inline-block text-white/60 text-sm font-medium uppercase tracking-widest mb-3">{{.SchoolName}}</span>
+        <h1 class="font-display font-bold text-white text-4xl lg:text-5xl mb-4">Primary School</h1>
+        <p class="text-white/70 text-lg max-w-2xl mx-auto">Ages 6-12 · Primary 1-6 &mdash; Excellence in education for every child.</p>
+        <a href="/admissions" class="inline-flex items-center bg-white text-primary font-semibold px-8 py-3 rounded-xl hover:bg-white/90 transition-all mt-8 min-h-[44px]">Apply for Admission</a>
+      </div>
+    </section>
+
+    <section class="py-20 bg-white">
+      <div class="max-w-[1440px] mx-auto px-6 lg:px-12">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div>
+            <span class="inline-block text-accent text-sm font-semibold uppercase tracking-widest mb-3">Overview</span>
+            <h2 class="font-display font-bold text-primary text-3xl mb-6">A World-Class Primary Education</h2>
+            <p class="text-text-secondary text-lg leading-relaxed mb-6">
+              Our Primary School provides a stimulating, supportive environment where students develop academically, socially, and emotionally. Every child is known, valued, and challenged to reach their full potential.
+            </p>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="p-4 bg-background rounded-xl">
+                <p class="font-bold text-primary text-2xl" data-count="100">0</p>
+                <p class="text-text-secondary text-sm">Students</p>
+              </div>
+              <div class="p-4 bg-background rounded-xl">
+                <p class="font-bold text-primary text-2xl" data-count="15">0</p>
+                <p class="text-text-secondary text-sm">Qualified Teachers</p>
+              </div>
+            </div>
+          </div>
+          <div class="bg-background rounded-2xl p-8">
+            <h3 class="font-semibold text-primary mb-4">Classes Offered</h3>
+            <div id="classes-list" class="space-y-2">
+              <div class="skeleton h-8 rounded"></div>
+              <div class="skeleton h-8 rounded"></div>
+              <div class="skeleton h-8 rounded"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="py-20 bg-background">
+      <div class="max-w-[1440px] mx-auto px-6 lg:px-12">
+        <div class="text-center mb-12">
+          <h2 class="font-display font-bold text-primary text-3xl">Recent Activities</h2>
+          <p class="text-text-secondary mt-2">A glimpse into life at our Primary School</p>
+        </div>
+        <div id="division-feed" class="feed-grid"></div>
+        <div class="text-center mt-8">
+          <a href="/feed?division=PRIMARY" class="btn btn-outline">View All Activities</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="py-20 bg-primary">
+      <div class="max-w-[1440px] mx-auto px-6 lg:px-12 text-center">
+        <h2 class="font-display font-bold text-white text-3xl mb-4">Enrol Your Child Today</h2>
+        <p class="text-white/70 mb-8">Give your child the best start. Apply for a place in our Primary School.</p>
+        <a href="/admissions" class="inline-flex items-center bg-white text-primary font-semibold px-8 py-3 rounded-xl hover:bg-white/90 transition-all min-h-[44px]">Start Application</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="bg-primary border-t border-white/10 py-12">
+    <div class="max-w-[1440px] mx-auto px-6 lg:px-12">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          {{if .SchoolLogoURL}}<img src="{{.SchoolLogoURL}}" alt="" class="h-8 w-8 object-contain rounded" width="32" height="32">{{end}}
+          <span class="font-display font-bold text-white">{{.SchoolName}}</span>
+        </div>
+        <p class="text-white/50 text-sm">&copy; {{.CurrentYear}} {{.SchoolName}}. All rights reserved.</p>
+        <div class="flex gap-4">
+          <a href="/verify" class="text-white/50 hover:text-white text-sm transition-colors">Verify Document</a>
+          <a href="/login" class="text-white/50 hover:text-white text-sm transition-colors">Staff Portal</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="/static/js/public/nav.js"></script>
+  <script type="module" src="/static/js/public/counters.js"></script>
+  <script type="module">
+    fetch("/api/feed?division=PRIMARY&limit=6")
+      .then(r => r.json())
+      .then(data => {
+        const feed = document.getElementById("division-feed");
+        const posts = data.data || [];
+        if (!posts.length) { feed.innerHTML = "<p class='text-center text-secondary col-span-3'>No activities yet.</p>"; return; }
+        feed.innerHTML = posts.map(post => {
+          const media = post.media_urls && post.media_urls[0];
+          const mediaHTML = media ? (media.type === "VIDEO"
+            ? "<video src="" + media.url + "" class="w-full object-cover" muted></video>"
+            : "<img src="" + media.url + "" class="w-full object-cover" alt="" loading="lazy">") : "";
+          return "<div class="feed-item rounded-2xl overflow-hidden bg-white shadow-sm">" + mediaHTML + (post.caption ? "<div class="p-3"><p class="text-sm text-text-secondary line-clamp-2">" + post.caption + "</p></div>" : "") + "</div>";
+        }).join("");
+      }).catch(() => {});
+
+    fetch("/api/classes?division=PRIMARY")
+      .then(r => r.json())
+      .then(data => {
+        const list = document.getElementById("classes-list");
+        const classes = data.data || [];
+        if (!classes.length) { list.innerHTML = "<p class="text-secondary text-sm">Classes will be listed here.</p>"; return; }
+        list.innerHTML = classes.map(c => "<div class="flex items-center gap-2 py-2 border-b border-neutral-100 last:border-0"><span class="w-2 h-2 rounded-full bg-accent"></span><span class="text-sm font-medium">" + c.name + "</span></div>").join("");
+      }).catch(() => {});
+  </script>
+</body>
+</html>

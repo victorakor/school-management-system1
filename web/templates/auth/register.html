@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create Account — {{.SchoolName}}</title>
+  <meta name="csrf-token" content="{{.CSRFToken}}" />
+  <link rel="preload" href="/static/fonts/PlusJakartaSans-Bold.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/static/fonts/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/static/css/app.css" />
+  {{if .SchoolLogoURL}}<link rel="icon" type="image/png" href="{{.SchoolLogoURL}}" />{{end}}
+</head>
+<body class="bg-background text-text-primary font-body antialiased min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-md">
+    <!-- Logo -->
+    <div class="text-center mb-8">
+      <a href="/" class="inline-flex flex-col items-center gap-2">
+        {{if .SchoolLogoURL}}
+        <img src="{{.SchoolLogoURL}}" alt="{{.SchoolName}}" class="h-16 w-16 object-contain rounded-2xl shadow-md" width="64" height="64">
+        {{else}}
+        <div class="h-16 w-16 rounded-2xl bg-primary flex items-center justify-center">
+          <svg class="text-white" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        </div>
+        {{end}}
+        <span class="font-display font-bold text-primary text-lg">{{.SchoolName}}</span>
+      </a>
+    </div>
+
+    <!-- Step Indicator -->
+    <div class="flex items-center justify-center gap-2 mb-8" id="step-indicator">
+      <div class="step-dot w-8 h-8 rounded-full bg-accent text-white text-xs font-bold flex items-center justify-center" data-step="1">1</div>
+      <div class="h-0.5 w-8 bg-neutral-200" id="step-line-1"></div>
+      <div class="step-dot w-8 h-8 rounded-full bg-neutral-200 text-neutral-400 text-xs font-bold flex items-center justify-center" data-step="2">2</div>
+      <div class="h-0.5 w-8 bg-neutral-200" id="step-line-2"></div>
+      <div class="step-dot w-8 h-8 rounded-full bg-neutral-200 text-neutral-400 text-xs font-bold flex items-center justify-center" data-step="3">3</div>
+    </div>
+
+    <!-- Step 1: Account Details -->
+    <div id="step-1" class="card p-8">
+      <h1 class="font-display font-bold text-primary text-2xl mb-1">Create Your Account</h1>
+      <p class="text-text-secondary text-sm mb-6">Register as a parent to apply for admission.</p>
+
+      <form id="register-form" class="space-y-4" novalidate>
+        <div class="form-group">
+          <label for="full_name" class="label block mb-1">Full Name <span class="text-danger">*</span></label>
+          <input type="text" id="full_name" name="full_name" class="input w-full" placeholder="Your full name" autocomplete="name" required>
+          <p class="field-error text-danger text-xs mt-1 hidden" id="err-full_name"></p>
+        </div>
+        <div class="form-group">
+          <label for="email" class="label block mb-1">Email Address <span class="text-danger">*</span></label>
+          <input type="email" id="email" name="email" class="input w-full" placeholder="your@email.com" autocomplete="email" required>
+          <p class="field-error text-danger text-xs mt-1 hidden" id="err-email"></p>
+        </div>
+        <div class="form-group">
+          <label for="phone" class="label block mb-1">Phone Number <span class="text-danger">*</span></label>
+          <input type="tel" id="phone" name="phone" class="input w-full" placeholder="+234 800 000 0000" autocomplete="tel" required>
+          <p class="field-error text-danger text-xs mt-1 hidden" id="err-phone"></p>
+        </div>
+        <div class="form-group">
+          <label for="password" class="label block mb-1">Password <span class="text-danger">*</span></label>
+          <div class="relative">
+            <input type="password" id="password" name="password" class="input w-full pr-10" placeholder="Min. 8 characters" autocomplete="new-password" required>
+            <button type="button" id="toggle-password" class="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-primary transition-colors" aria-label="Toggle password visibility">
+              <svg id="eye-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <p class="field-error text-danger text-xs mt-1 hidden" id="err-password"></p>
+        </div>
+        <div class="form-group">
+          <label for="password_confirm" class="label block mb-1">Confirm Password <span class="text-danger">*</span></label>
+          <input type="password" id="password_confirm" name="password_confirm" class="input w-full" placeholder="Repeat your password" autocomplete="new-password" required>
+          <p class="field-error text-danger text-xs mt-1 hidden" id="err-password_confirm"></p>
+        </div>
+
+        <div id="form-error" class="hidden p-3 bg-danger/10 border border-danger/20 rounded-lg text-danger text-sm"></div>
+
+        <button type="submit" id="register-btn" class="btn btn-primary w-full min-h-[44px]">
+          <span id="register-btn-text">Create Account</span>
+          <span id="register-btn-loading" class="hidden">Creating account...</span>
+        </button>
+      </form>
+
+      <p class="text-center text-text-secondary text-sm mt-6">
+        Already have an account? <a href="/login" class="text-accent font-medium hover:underline">Sign in</a>
+      </p>
+    </div>
+
+    <!-- Step 2: Email Verification -->
+    <div id="step-2" class="card p-8 hidden">
+      <div class="text-center mb-6">
+        <div class="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
+          <svg class="text-accent" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        </div>
+        <h2 class="font-display font-bold text-primary text-2xl mb-2">Check Your Email</h2>
+        <p class="text-text-secondary text-sm">We've sent a 6-digit verification code to <strong id="otp-email-display"></strong></p>
+      </div>
+
+      <form id="otp-form" class="space-y-4" novalidate>
+        <div class="form-group">
+          <label for="otp_code" class="label block mb-1 text-center">Verification Code</label>
+          <input type="text" id="otp_code" name="otp_code" class="input w-full text-center font-mono text-2xl tracking-[0.5rem] py-4"
+                 placeholder="000000" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code">
+          <p class="field-error text-danger text-xs mt-1 hidden text-center" id="err-otp"></p>
+        </div>
+
+        <div id="otp-error" class="hidden p-3 bg-danger/10 border border-danger/20 rounded-lg text-danger text-sm"></div>
+
+        <button type="submit" id="verify-btn" class="btn btn-primary w-full min-h-[44px]">
+          <span id="verify-btn-text">Verify Email</span>
+          <span id="verify-btn-loading" class="hidden">Verifying...</span>
+        </button>
+      </form>
+
+      <div class="text-center mt-4">
+        <p class="text-text-secondary text-sm">Didn't receive the code?
+          <button id="resend-btn" class="text-accent font-medium hover:underline" type="button">Resend</button>
+        </p>
+        <p id="resend-countdown" class="text-text-secondary text-xs mt-1 hidden"></p>
+      </div>
+    </div>
+
+    <!-- Step 3: Success -->
+    <div id="step-3" class="card p-8 hidden text-center">
+      <div class="w-16 h-16 rounded-2xl bg-success/10 flex items-center justify-center mx-auto mb-4">
+        <svg class="text-success" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <h2 class="font-display font-bold text-primary text-2xl mb-2">Account Verified!</h2>
+      <p class="text-text-secondary text-sm mb-6">Your email has been verified. You can now submit an application for your child.</p>
+      <a href="/admissions" class="btn btn-primary w-full min-h-[44px]">Continue to Application</a>
+      <a href="/portal" class="btn btn-outline w-full min-h-[44px] mt-2">Go to Portal</a>
+    </div>
+  </div>
+
+  <script type="module">
+    import { showToast } from '/static/js/shared/utils.js';
+
+    const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    let userID = '';
+    let userEmail = '';
+
+    // ─── Step 1: Registration ──────────────────────────────────────────────────
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearErrors();
+
+      const data = {
+        full_name: document.getElementById('full_name').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        password: document.getElementById('password').value,
+        password_confirm: document.getElementById('password_confirm').value,
+        school_id: '{{.SchoolID}}',
+      };
+
+      setLoading('register', true);
+
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+          body: JSON.stringify(data),
+        });
+        const json = await res.json();
+
+        if (!res.ok) {
+          if (json.errors) {
+            Object.entries(json.errors).forEach(([field, msg]) => showFieldError(field, msg));
+          } else {
+            showFormError('form-error', json.message || 'Registration failed');
+          }
+          return;
+        }
+
+        userID = json.data.user_id;
+        userEmail = data.email;
+        document.getElementById('otp-email-display').textContent = userEmail;
+        goToStep(2);
+        startResendCountdown();
+      } catch {
+        showFormError('form-error', 'Network error — please try again');
+      } finally {
+        setLoading('register', false);
+      }
+    });
+
+    // ─── Step 2: OTP Verification ──────────────────────────────────────────────
+    document.getElementById('otp-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const otp = document.getElementById('otp_code').value.trim();
+      if (otp.length !== 6) {
+        document.getElementById('err-otp').textContent = 'Please enter the 6-digit code';
+        document.getElementById('err-otp').classList.remove('hidden');
+        return;
+      }
+
+      setLoading('verify', true);
+
+      try {
+        const res = await fetch('/api/auth/verify-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+          body: JSON.stringify({ user_id: userID, otp_code: otp }),
+        });
+        const json = await res.json();
+
+        if (!res.ok) {
+          showFormError('otp-error', json.message || 'Invalid code');
+          return;
+        }
+
+        goToStep(3);
+      } catch {
+        showFormError('otp-error', 'Network error — please try again');
+      } finally {
+        setLoading('verify', false);
+      }
+    });
+
+    // ─── Resend OTP ────────────────────────────────────────────────────────────
+    document.getElementById('resend-btn').addEventListener('click', async () => {
+      try {
+        await fetch('/api/auth/resend-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+          body: JSON.stringify({ user_id: userID }),
+        });
+        showToast('Verification code resent', 'success');
+        startResendCountdown();
+      } catch {
+        showToast('Failed to resend code', 'error');
+      }
+    });
+
+    // ─── Password Toggle ───────────────────────────────────────────────────────
+    document.getElementById('toggle-password').addEventListener('click', () => {
+      const input = document.getElementById('password');
+      input.type = input.type === 'password' ? 'text' : 'password';
+    });
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+    function goToStep(n) {
+      [1, 2, 3].forEach(i => {
+        document.getElementById(`step-${i}`).classList.toggle('hidden', i !== n);
+        const dot = document.querySelector(`.step-dot[data-step="${i}"]`);
+        if (i < n) {
+          dot.className = 'step-dot w-8 h-8 rounded-full bg-success text-white text-xs font-bold flex items-center justify-center';
+          dot.innerHTML = '✓';
+        } else if (i === n) {
+          dot.className = 'step-dot w-8 h-8 rounded-full bg-accent text-white text-xs font-bold flex items-center justify-center';
+          dot.textContent = i;
+        } else {
+          dot.className = 'step-dot w-8 h-8 rounded-full bg-neutral-200 text-neutral-400 text-xs font-bold flex items-center justify-center';
+          dot.textContent = i;
+        }
+        if (i < n) {
+          const line = document.getElementById(`step-line-${i}`);
+          if (line) line.classList.replace('bg-neutral-200', 'bg-success');
+        }
+      });
+    }
+
+    function clearErrors() {
+      document.querySelectorAll('.field-error').forEach(el => el.classList.add('hidden'));
+      document.getElementById('form-error').classList.add('hidden');
+    }
+
+    function showFieldError(field, msg) {
+      const el = document.getElementById(`err-${field}`);
+      if (el) { el.textContent = msg; el.classList.remove('hidden'); }
+      const input = document.getElementById(field);
+      if (input) input.classList.add('border-danger');
+    }
+
+    function showFormError(id, msg) {
+      const el = document.getElementById(id);
+      if (el) { el.textContent = msg; el.classList.remove('hidden'); }
+    }
+
+    function setLoading(type, loading) {
+      const btn = document.getElementById(`${type}-btn`);
+      const text = document.getElementById(`${type}-btn-text`);
+      const spinner = document.getElementById(`${type}-btn-loading`);
+      if (btn) btn.disabled = loading;
+      if (text) text.classList.toggle('hidden', loading);
+      if (spinner) spinner.classList.toggle('hidden', !loading);
+    }
+
+    function startResendCountdown() {
+      const btn = document.getElementById('resend-btn');
+      const countdown = document.getElementById('resend-countdown');
+      btn.disabled = true;
+      btn.classList.add('opacity-50');
+      countdown.classList.remove('hidden');
+      let seconds = 60;
+      const interval = setInterval(() => {
+        seconds--;
+        countdown.textContent = `Resend available in ${seconds}s`;
+        if (seconds <= 0) {
+          clearInterval(interval);
+          btn.disabled = false;
+          btn.classList.remove('opacity-50');
+          countdown.classList.add('hidden');
+        }
+      }, 1000);
+    }
+  </script>
+</body>
+</html>

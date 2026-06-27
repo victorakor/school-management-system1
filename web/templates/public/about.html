@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About Us — {{.SchoolName}}</title>
+  <meta name="description" content="Learn about {{.SchoolName}} — our mission, values, and commitment to excellence in education." />
+  <link rel="preload" href="/static/fonts/PlusJakartaSans-Bold.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/static/fonts/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/static/css/app.css" />
+  {{if .SchoolLogoURL}}<link rel="icon" type="image/png" href="{{.SchoolLogoURL}}" />{{end}}
+</head>
+<body class="bg-background text-text-primary font-body antialiased overflow-x-hidden">
+  <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:bg-accent focus:text-white focus:px-4 focus:py-2 focus:rounded-lg">Skip to main content</a>
+
+  <!-- Navigation (same as index) -->
+  <header id="site-nav" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300" role="banner">
+    <nav class="max-w-[1440px] mx-auto px-6 lg:px-12 h-16 flex items-center justify-between" aria-label="Main navigation">
+      <a href="/" class="flex items-center gap-3 flex-shrink-0">
+        {{if .SchoolLogoURL}}<img src="{{.SchoolLogoURL}}" alt="" class="h-10 w-10 object-contain rounded-lg" width="40" height="40">{{end}}
+        <span class="font-display font-bold text-lg text-white leading-tight hidden sm:block">{{.SchoolName}}</span>
+      </a>
+      <ul class="hidden lg:flex items-center gap-1">
+        <li><a href="/" class="nav-link px-4 py-2 rounded-lg text-sm font-medium text-white/80 hover:text-white transition-colors">Home</a></li>
+        <li><a href="/about" class="nav-link px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors">About</a></li>
+        <li><a href="/feed" class="nav-link px-4 py-2 rounded-lg text-sm font-medium text-white/80 hover:text-white transition-colors">Activities</a></li>
+        <li><a href="/admissions" class="nav-link px-4 py-2 rounded-lg text-sm font-medium text-white/80 hover:text-white transition-colors">Admissions</a></li>
+      </ul>
+      <div class="flex items-center gap-3">
+        <a href="/login" class="hidden sm:inline-flex text-sm font-medium text-white/80 hover:text-white transition-colors min-h-[44px] items-center">Portal</a>
+        <a href="/admissions" class="inline-flex items-center bg-white text-primary text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-white/90 transition-all shadow-sm min-h-[44px]">Apply Now</a>
+        <button id="mobile-menu-btn" class="lg:hidden p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center" aria-label="Open menu">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Mobile Drawer -->
+  <div id="mobile-drawer" class="fixed inset-0 z-40 hidden" aria-hidden="true">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" id="drawer-backdrop"></div>
+    <div class="absolute top-0 left-0 right-0 bg-primary p-6 pt-20 shadow-2xl">
+      <nav class="flex flex-col gap-1">
+        <a href="/" class="mobile-nav-link px-4 py-3 rounded-xl text-white/80 hover:text-white hover:bg-white/10 font-medium transition-colors">Home</a>
+        <a href="/about" class="mobile-nav-link px-4 py-3 rounded-xl text-white font-medium bg-white/10">About</a>
+        <a href="/feed" class="mobile-nav-link px-4 py-3 rounded-xl text-white/80 hover:text-white hover:bg-white/10 font-medium transition-colors">Activities</a>
+        <a href="/admissions" class="mobile-nav-link px-4 py-3 rounded-xl text-white/80 hover:text-white hover:bg-white/10 font-medium transition-colors">Admissions</a>
+        <a href="/login" class="mobile-nav-link px-4 py-3 rounded-xl text-white/80 hover:text-white hover:bg-white/10 font-medium transition-colors">Portal Login</a>
+      </nav>
+    </div>
+  </div>
+
+  <main id="main-content">
+    <!-- Hero -->
+    <section class="bg-primary pt-32 pb-20 relative overflow-hidden">
+      <div class="absolute inset-0 bg-gradient-to-br from-primary to-accent/30"></div>
+      <div class="absolute top-0 right-0 w-96 h-96 bg-accent/10 rounded-full blur-3xl"></div>
+      <div class="relative z-10 max-w-[1440px] mx-auto px-6 lg:px-12 text-center">
+        <h1 class="font-display font-bold text-white text-4xl lg:text-5xl mb-4">About {{.SchoolName}}</h1>
+        <p class="text-white/70 text-lg max-w-2xl mx-auto">{{.SchoolMotto}}</p>
+      </div>
+    </section>
+
+    <!-- Mission & Vision -->
+    <section class="py-20 bg-white">
+      <div class="max-w-[1440px] mx-auto px-6 lg:px-12">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div>
+            <span class="inline-block text-accent text-sm font-semibold uppercase tracking-widest mb-3">Our Purpose</span>
+            <h2 class="font-display font-bold text-primary text-3xl lg:text-4xl mb-6">Shaping Tomorrow's Leaders Today</h2>
+            <p class="text-text-secondary text-lg leading-relaxed mb-6">
+              {{.SchoolName}} is committed to providing a world-class education that nurtures intellectual curiosity, moral character, and creative thinking in every student from Nursery through Secondary school.
+            </p>
+            <p class="text-text-secondary leading-relaxed">
+              Our holistic approach to education combines rigorous academics with character development, ensuring every graduate is equipped to thrive in an ever-changing world.
+            </p>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div class="card p-6 text-center">
+              <div class="text-4xl font-bold text-accent mb-2" data-count="500">0</div>
+              <p class="text-text-secondary text-sm">Students Enrolled</p>
+            </div>
+            <div class="card p-6 text-center">
+              <div class="text-4xl font-bold text-accent mb-2" data-count="50">0</div>
+              <p class="text-text-secondary text-sm">Qualified Staff</p>
+            </div>
+            <div class="card p-6 text-center">
+              <div class="text-4xl font-bold text-accent mb-2" data-count="3">0</div>
+              <p class="text-text-secondary text-sm">School Divisions</p>
+            </div>
+            <div class="card p-6 text-center">
+              <div class="text-4xl font-bold text-accent mb-2" data-count="15">0</div>
+              <p class="text-text-secondary text-sm">Years of Excellence</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Values -->
+    <section class="py-20 bg-background">
+      <div class="max-w-[1440px] mx-auto px-6 lg:px-12">
+        <div class="text-center mb-12">
+          <span class="inline-block text-accent text-sm font-semibold uppercase tracking-widest mb-3">What We Stand For</span>
+          <h2 class="font-display font-bold text-primary text-3xl lg:text-4xl">Our Core Values</h2>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div class="card p-6">
+            <div class="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mb-4">
+              <svg class="text-accent" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            </div>
+            <h3 class="font-semibold text-primary text-lg mb-2">Excellence</h3>
+            <p class="text-text-secondary text-sm leading-relaxed">We pursue the highest standards in everything we do — academically, morally, and socially.</p>
+          </div>
+          <div class="card p-6">
+            <div class="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center mb-4">
+              <svg class="text-success" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <h3 class="font-semibold text-primary text-lg mb-2">Community</h3>
+            <p class="text-text-secondary text-sm leading-relaxed">We build a supportive, inclusive community where every student feels valued and belongs.</p>
+          </div>
+          <div class="card p-6">
+            <div class="w-12 h-12 rounded-xl bg-gold/10 flex items-center justify-center mb-4">
+              <svg class="text-gold" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <h3 class="font-semibold text-primary text-lg mb-2">Integrity</h3>
+            <p class="text-text-secondary text-sm leading-relaxed">We act with honesty, transparency, and accountability in all our interactions.</p>
+          </div>
+          <div class="card p-6">
+            <div class="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mb-4">
+              <svg class="text-accent" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            </div>
+            <h3 class="font-semibold text-primary text-lg mb-2">Innovation</h3>
+            <p class="text-text-secondary text-sm leading-relaxed">We embrace modern teaching methods and technology to prepare students for the future.</p>
+          </div>
+          <div class="card p-6">
+            <div class="w-12 h-12 rounded-xl bg-danger/10 flex items-center justify-center mb-4">
+              <svg class="text-danger" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            </div>
+            <h3 class="font-semibold text-primary text-lg mb-2">Care</h3>
+            <p class="text-text-secondary text-sm leading-relaxed">We genuinely care about the wellbeing, growth, and success of every student in our care.</p>
+          </div>
+          <div class="card p-6">
+            <div class="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center mb-4">
+              <svg class="text-success" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+            <h3 class="font-semibold text-primary text-lg mb-2">Growth</h3>
+            <p class="text-text-secondary text-sm leading-relaxed">We foster a growth mindset, encouraging students to learn from challenges and keep improving.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Contact -->
+    <section class="py-20 bg-primary">
+      <div class="max-w-[1440px] mx-auto px-6 lg:px-12 text-center">
+        <h2 class="font-display font-bold text-white text-3xl mb-4">Get in Touch</h2>
+        <p class="text-white/70 mb-8">We'd love to hear from you. Visit us or reach out.</p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <div class="flex items-center gap-2 text-white/80">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span class="text-sm">{{.SchoolAddress}}</span>
+          </div>
+          <div class="flex items-center gap-2 text-white/80">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <span class="text-sm">{{.SchoolPhone}}</span>
+          </div>
+          <div class="flex items-center gap-2 text-white/80">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            <span class="text-sm">{{.SchoolEmail}}</span>
+          </div>
+        </div>
+        <a href="/admissions" class="inline-flex items-center bg-white text-primary font-semibold px-8 py-3 rounded-xl hover:bg-white/90 transition-all mt-8 min-h-[44px]">Apply for Admission</a>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-primary border-t border-white/10 py-12">
+    <div class="max-w-[1440px] mx-auto px-6 lg:px-12">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          {{if .SchoolLogoURL}}<img src="{{.SchoolLogoURL}}" alt="" class="h-8 w-8 object-contain rounded" width="32" height="32">{{end}}
+          <span class="font-display font-bold text-white">{{.SchoolName}}</span>
+        </div>
+        <p class="text-white/50 text-sm">© {{.CurrentYear}} {{.SchoolName}}. All rights reserved.</p>
+        <div class="flex gap-4">
+          <a href="/verify" class="text-white/50 hover:text-white text-sm transition-colors">Verify Document</a>
+          <a href="/login" class="text-white/50 hover:text-white text-sm transition-colors">Staff Portal</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="/static/js/public/nav.js"></script>
+  <script type="module" src="/static/js/public/counters.js"></script>
+</body>
+</html>
