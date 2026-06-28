@@ -19,13 +19,19 @@ export async function initUsers(container, user) {
       </select>
     </div>
     <div id="users-list"></div>
+  `;
 
-    <!-- Add user modal -->
-    <div id="add-user-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
-      <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" id="modal-backdrop"></div>
-      <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 z-10">
-        <h2 class="font-display font-bold text-lg text-primary mb-4">Add Staff Member</h2>
-        <div class="space-y-4">
+  // ── Modal (appended to body so z-index is never trapped) ──────────────
+  let modal = document.getElementById('add-user-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'add-user-modal';
+    modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+      <div id="modal-backdrop" style="position:absolute;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);"></div>
+      <div style="position:relative;background:#fff;border-radius:1.25rem;box-shadow:0 25px 60px rgba(0,0,0,0.2);width:100%;max-width:480px;padding:1.5rem;z-index:201;margin:1rem;">
+        <h2 style="font-size:1.125rem;font-weight:700;color:var(--color-primary);margin-bottom:1rem;">Add Staff Member</h2>
+        <div style="display:grid;gap:0.75rem;">
           <div><label class="label">Full Name</label><input id="new-name" class="input w-full" placeholder="Full name" /></div>
           <div><label class="label">Email</label><input id="new-email" type="email" class="input w-full" placeholder="Email address" /></div>
           <div><label class="label">Phone</label><input id="new-phone" class="input w-full" placeholder="+234…" /></div>
@@ -44,20 +50,31 @@ export async function initUsers(container, user) {
           </div>
           <div><label class="label">Temporary Password</label><input id="new-password" type="password" class="input w-full" placeholder="Min. 8 characters" /></div>
         </div>
-        <div class="flex gap-3 mt-6">
-          <button id="cancel-add" class="btn btn-ghost flex-1">Cancel</button>
-          <button id="confirm-add" class="btn btn-primary flex-1">Create Account</button>
+        <div style="display:flex;gap:0.75rem;margin-top:1.25rem;">
+          <button id="cancel-add-btn" class="btn btn-ghost" style="flex:1;">Cancel</button>
+          <button id="confirm-add-btn" class="btn btn-primary" style="flex:1;">Create Account</button>
         </div>
-        <p id="add-error" class="text-danger text-xs mt-2 hidden"></p>
+        <p id="add-error" style="color:var(--color-danger);font-size:0.75rem;margin-top:0.5rem;display:none;"></p>
       </div>
-    </div>
-  `;
+    `;
+    document.body.appendChild(modal);
+  }
+
+  const openModal  = () => { modal.style.display = 'flex'; };
+  const closeModal = () => { modal.style.display = 'none'; clearForm(); };
+
+  document.getElementById('add-user-btn').addEventListener('click', openModal);
+  // Use the IDs on the modal itself (already in DOM from previous open or just created)
+  modal.querySelector('#cancel-add-btn').addEventListener('click', closeModal);
+  modal.querySelector('#modal-backdrop').addEventListener('click', closeModal);
+  modal.querySelector('#confirm-add-btn').addEventListener('click', () => createUser(closeModal));
+
+  // Close on Escape
+  document.addEventListener('keydown', function escHandler(e) {
+    if (e.key === 'Escape' && modal.style.display === 'flex') closeModal();
+  });
 
   document.getElementById('role-filter').addEventListener('change', loadUsers);
-  document.getElementById('add-user-btn').addEventListener('click', () => document.getElementById('add-user-modal').classList.remove('hidden'));
-  document.getElementById('cancel-add').addEventListener('click', () => document.getElementById('add-user-modal').classList.add('hidden'));
-  document.getElementById('modal-backdrop').addEventListener('click', () => document.getElementById('add-user-modal').classList.add('hidden'));
-  document.getElementById('confirm-add').addEventListener('click', createUser);
   await loadUsers();
 }
 
@@ -94,34 +111,50 @@ async function loadUsers() {
   }
 }
 
-async function createUser() {
+async function createUser(closeModal) {
   const errEl = document.getElementById('add-error');
-  errEl.classList.add('hidden');
+  errEl.style.display = 'none';
+
   const body = {
-    full_name: document.getElementById('new-name').value.trim(),
-    email: document.getElementById('new-email').value.trim(),
-    phone: document.getElementById('new-phone').value.trim(),
-    role: document.getElementById('new-role').value,
+    full_name:      document.getElementById('new-name').value.trim(),
+    email:          document.getElementById('new-email').value.trim(),
+    phone:          document.getElementById('new-phone').value.trim(),
+    role:           document.getElementById('new-role').value,
     division_scope: document.getElementById('new-division').value,
-    password: document.getElementById('new-password').value,
+    password:       document.getElementById('new-password').value,
   };
+
   if (!body.full_name || !body.email || !body.password) {
     errEl.textContent = 'Name, email and password are required.';
-    errEl.classList.remove('hidden');
+    errEl.style.display = 'block';
     return;
   }
+
   try {
     await api.post('/api/users', body);
-    document.getElementById('add-user-modal').classList.add('hidden');
+    closeModal();
     showToast('Staff member created successfully.', 'success');
     await loadUsers();
   } catch (err) {
     errEl.textContent = err.message || 'Failed to create user.';
-    errEl.classList.remove('hidden');
+    errEl.style.display = 'block';
   }
 }
 
+function clearForm() {
+  ['new-name','new-email','new-phone','new-password'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const errEl = document.getElementById('add-error');
+  if (errEl) errEl.style.display = 'none';
+}
+
 function formatRole(r) {
-  const m = { PRINCIPAL:'Principal', VICE_PRINCIPAL:'Vice Principal', HEAD_TEACHER:'Head Teacher', ASST_HEAD_TEACHER:'Asst. Head Teacher', BURSAR:'Bursar', TEACHER:'Teacher' };
+  const m = {
+    PRINCIPAL: 'Principal', VICE_PRINCIPAL: 'Vice Principal',
+    HEAD_TEACHER: 'Head Teacher', ASST_HEAD_TEACHER: 'Asst. Head Teacher',
+    BURSAR: 'Bursar', TEACHER: 'Teacher',
+  };
   return m[r] || r;
 }

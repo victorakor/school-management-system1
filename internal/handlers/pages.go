@@ -3,6 +3,7 @@ package handlers
 import (
 	"html/template"
 	"net/http"
+	"time"
 
 	"school-platform/internal/middleware"
 	"school-platform/internal/models"
@@ -10,23 +11,59 @@ import (
 	"gorm.io/gorm"
 )
 
-// PageData is the template data struct injected into every server-rendered page.
-type PageData struct {
-	SchoolName        string
-	SchoolMotto       string
-	SchoolLogoURL     string
-	SchoolAddress     string
-	SchoolPhone       string
-	SchoolEmail       string
-	SchoolPrimaryColor string
-	CSRFToken         string
-	Title             string
-	MetaDescription   string
-	// AdmissionWindowOpen is true when a public admission window is currently open.
-	AdmissionWindowOpen bool
+// FeedPostData is the minimal feed post shape the homepage template needs.
+type FeedPostData struct {
+	Caption     string
+	DivisionTag string
+	MediaURLs   []string
 }
 
-// PagesHandler serves all server-rendered HTML pages with injected school data.
+// AnnouncementData is the minimal announcement shape the ticker needs.
+type AnnouncementData struct {
+	Title string
+}
+
+// PageData is injected into every server-rendered HTML page.
+// It covers every {{.Field}} used across all public templates.
+type PageData struct {
+	// School identity
+	SchoolName         string
+	SchoolMotto        string
+	SchoolLogoURL      string
+	SchoolAddress      string
+	SchoolPhone        string
+	SchoolEmail        string
+	SchoolPrimaryColor string
+	SchoolID           string
+
+	// Request
+	CSRFToken       string
+	Title           string
+	MetaDescription string
+
+	// Dates
+	CurrentYear int
+
+	// Admissions
+	AdmissionWindowOpen      bool
+	AdmissionWindowCloseDate string
+	CurrentSessionName       string
+
+	// Homepage extras
+	TotalStudents    int
+	TotalTeachers    int
+	YearsEstablished int
+	VideoHeroURL     string
+	AdmissionsOpen   bool // alias of AdmissionWindowOpen used in some templates
+
+	// Feed preview (homepage only)
+	FeedPosts []FeedPostData
+
+	// Announcement ticker (homepage only)
+	Announcements []AnnouncementData
+}
+
+// PagesHandler serves all server-rendered HTML pages.
 type PagesHandler struct {
 	db *gorm.DB
 }
@@ -35,75 +72,123 @@ func NewPagesHandler(db *gorm.DB) *PagesHandler {
 	return &PagesHandler{db: db}
 }
 
-// loadSchool fetches the first (only) school record. Falls back to LEAPS defaults
-// if the DB is unavailable or the record has no name yet.
-func (h *PagesHandler) loadSchool() PageData {
+// buildPageData loads school record + admission window + stats from DB.
+// All DB errors are swallowed — sensible defaults always render.
+func (h *PagesHandler) buildPageData(r *http.Request) PageData {
 	data := PageData{
+		// Hard-coded LEAPS defaults (overridden by DB below)
 		SchoolName:         "Leadership Preparatory Academy – LEAPS",
 		SchoolMotto:        "Building Tomorrow's World Now",
 		SchoolAddress:      "Makurdi, Benue State, Nigeria",
-		SchoolPhone:        "",
-		SchoolEmail:        "",
 		SchoolPrimaryColor: "#0F2557",
+		CurrentYear:        time.Now().Year(),
+		YearsEstablished:   5,
+		CSRFToken:          middleware.GetCSRFToken(r),
 	}
 
-	if h.db != nil {
-		var school models.School
-		if err := h.db.First(&school).Error; err == nil {
-			if school.Name != "" {
-				data.SchoolName = school.Name
-			}
-			if school.Motto != "" {
-				data.SchoolMotto = school.Motto
-			}
-			if school.Address != "" {
-				data.SchoolAddress = school.Address
-			}
-			if school.Phone != "" {
-				data.SchoolPhone = school.Phone
-			}
-			if school.Email != "" {
-				data.SchoolEmail = school.Email
-			}
-			if school.LogoURL != "" {
-				data.SchoolLogoURL = school.LogoURL
-			}
-			if school.PrimaryColor != "" {
-				data.SchoolPrimaryColor = school.PrimaryColor
-			}
+	if h.db == nil {
+		return data
+	}
+
+	// ── School record ──────────────────────────────────────────────────────
+	var school models.School
+	if err := h.db.First(&school).Error; err == nil {
+		data.SchoolID = school.ID.String()
+		if school.Name != "" {
+			data.SchoolName = school.Name
+		}
+		if school.Motto != "" {
+			data.SchoolMotto = school.Motto
+		}
+		if school.Address != "" {
+			data.SchoolAddress = school.Address
+		}
+		if school.Phone != "" {
+			data.SchoolPhone = school.Phone
+		}
+		if school.Email != "" {
+			data.SchoolEmail = school.Email
+		}
+		if school.LogoURL != "" {
+			data.SchoolLogoURL = school.LogoURL
+		}
+		if school.PrimaryColor != "" {
+			data.SchoolPrimaryColor = school.PrimaryColor
 		}
 	}
+
+	// ── Active admission window ────────────────────────────────────────────
+	var window models.AdmissionWindow
+	if err := h.db.Preload("Session").Where("is_active = true").First(&window).Error; err == nil {
+		data.AdmissionWindowOpen = true
+		data.AdmissionsOpen = true
+		data.AdmissionWindowCloseDate = window.CloseDate.Format("2 January 2006")
+		if window.Session.Name != "" {
+			data.CurrentSessionName = window.Session.Name
+		}
+	}
+
+	// ── Active session name (even if window closed) ────────────────────────
+	if data.CurrentSessionName == "" {
+		var session models.AcademicSession
+		if err := h.db.Where("is_active = true").First(&session).Error; err == nil {
+			data.CurrentSessionName = session.Name
+		}
+	}
+
+	// ── Student + teacher counts ───────────────────────────────────────────
+	var studentCount int64
+	h.db.Model(&models.Student{}).Where("is_active = true AND is_archived = false").Count(&studentCount)
+	data.TotalStudents = int(studentCount)
+
+	var teacherCount int64
+	h.db.Model(&models.User{}).Where("role = ? AND is_active = true AND is_archived = false", models.RoleTeacher).Count(&teacherCount)
+	data.TotalTeachers = int(teacherCount)
+
+	// ── Latest 6 published feed posts for homepage preview ─────────────────
+	var posts []models.ActivityPost
+	if err := h.db.Where("is_published = true AND is_archived = false").
+		Order("created_at desc").Limit(6).Find(&posts).Error; err == nil {
+		for _, p := range posts {
+			fp := FeedPostData{
+				Caption:     p.Caption,
+				DivisionTag: string(p.DivisionTag),
+			}
+			for _, m := range p.MediaURLs {
+				fp.MediaURLs = append(fp.MediaURLs, m.URL)
+			}
+			data.FeedPosts = append(data.FeedPosts, fp)
+		}
+	}
+
+	// ── Latest 5 published announcements for ticker ────────────────────────
+	var announcements []models.Announcement
+	if err := h.db.Where("is_published = true AND is_archived = false").
+		Order("created_at desc").Limit(5).Find(&announcements).Error; err == nil {
+		for _, a := range announcements {
+			data.Announcements = append(data.Announcements, AnnouncementData{Title: a.Title})
+		}
+	}
+
 	return data
 }
 
-// ServePage renders a standalone HTML template file (not using the layout
-// partial system — each public/auth page is self-contained) with PageData.
+// ServePage renders a standalone HTML template file with full PageData.
 func (h *PagesHandler) ServePage(tmplPath, title, metaDesc string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data := h.loadSchool()
+		data := h.buildPageData(r)
 		data.Title = title
 		data.MetaDescription = metaDesc
-		data.CSRFToken = middleware.GetCSRFToken(r)
 
-		// Check admission window for pages that show it
-		if h.db != nil {
-			var window models.AdmissionWindow
-			if err := h.db.Where("is_active = true").First(&window).Error; err == nil {
-				data.AdmissionWindowOpen = true
-			}
-		}
-
-		abs := tmplPath
-		tmpl, err := template.ParseFiles(abs)
+		tmpl, err := template.ParseFiles(tmplPath)
 		if err != nil {
 			http.Error(w, "template error: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		// The template file name becomes the entry point for Execute
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		if execErr := tmpl.Execute(w, data); execErr != nil {
-			// Headers already sent — log only
+			// Headers already sent — can't change status; log via zerolog if available
 			_ = execErr
 		}
 	}
@@ -111,8 +196,7 @@ func (h *PagesHandler) ServePage(tmplPath, title, metaDesc string) http.HandlerF
 
 // ServePortal renders portal.html with school data + CSRF token.
 func (h *PagesHandler) ServePortal(w http.ResponseWriter, r *http.Request) {
-	data := h.loadSchool()
-	data.CSRFToken = middleware.GetCSRFToken(r)
+	data := h.buildPageData(r)
 	data.Title = "Portal"
 
 	tmpl, err := template.ParseFiles("web/templates/portal.html")
@@ -123,4 +207,3 @@ func (h *PagesHandler) ServePortal(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_ = tmpl.Execute(w, data)
 }
-
