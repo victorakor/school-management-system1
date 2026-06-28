@@ -386,7 +386,7 @@ func main() {
 }
 
 func startWorker(cfg *config.Config, db *gorm.DB, email *services.EmailService, pdfGen *pdf.Generator, baseURL string) *asynq.Server {
-	redisOpt := asynq.RedisClientOpt{Addr: cfg.RedisURL}
+	redisOpt := jobs.ParseRedisOpt(cfg.RedisURL)
 	srv := asynq.NewServer(redisOpt, asynq.Config{
 		Concurrency: 10,
 		Queues: map[string]int{

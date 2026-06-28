@@ -14,8 +14,9 @@ type Client struct {
 }
 
 // NewClient creates a Client connected to the given Redis URL.
+// redisURL may be a full redis://user:pass@host:port URL or bare host:port.
 func NewClient(redisURL string) *Client {
-	return &Client{c: asynq.NewClient(asynq.RedisClientOpt{Addr: redisURL})}
+	return &Client{c: asynq.NewClient(ParseRedisOpt(redisURL))}
 }
 
 // enqueueJSON marshals the payload and enqueues it under the given task type and queue.
