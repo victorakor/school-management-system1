@@ -169,7 +169,7 @@ async function renderPendingScoresPanel(container) {
   container.appendChild(panel);
   const body = panel.querySelector('.panel-body');
   try {
-    const data = await api.get('/api/scores/sheet?status=SUBMITTED&limit=5');
+    const data = await api.get('/api/scores?status=SUBMITTED&limit=5');
     if (!data.length) {
       body.innerHTML = emptyState('No pending approvals');
       return;

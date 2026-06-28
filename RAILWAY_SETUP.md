@@ -92,7 +92,7 @@ In the Railway dashboard → Go service → **Variables** tab, add every variabl
 | `CSRF_SECRET = 914d2c2b132e51b6a12ad26e32ef5271c25ade832742071811d3efb535a5009a` | Another random secret. Generate: `openssl rand -hex 32` |
 | `APP_BASE_URL = leaps-edu.up.railway.app` | Your production URL, e.g. `https://yourschool.com` — used in QR codes. Use the Railway-generated URL until you set up a custom domain. |
 | `ENVIRONMENT` | `production` |
-| `CHROMIUM_PATH` | `/usr/bin/chromium` (set by the Dockerfile — Chromium is installed at this path in the container) |
+| `CHROMIUM_PATH = /usr/bin/chromium` | `` (set by the Dockerfile — Chromium is installed at this path in the container) |
 
 ### Cloudinary (file storage — all uploaded files and generated PDFs)
 
@@ -298,10 +298,3 @@ RATE_LIMIT_WINDOW=1m
 
 *RAILWAY_SETUP.md — School Management Platform*
 *Update this document whenever infrastructure changes are made.*
-
-
-here is the school logo, the name is Leadership Preparatory Academy - LEAPS, 
-
-location Makurdi, Benue state
-
-motto: building tomorrow's world now

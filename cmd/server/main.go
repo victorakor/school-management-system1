@@ -67,6 +67,11 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to seed database")
 	}
 
+	// Populate demo data for all roles so every portal feature can be tested.
+	if err := database.DemoSeed(db); err != nil {
+		log.Warn().Err(err).Msg("demo seed warning (non-fatal)")
+	}
+
 	// ─── Services ─────────────────────────────────────────────────────────────
 	notifService := services.NewNotificationService(db)
 	admissionService := services.NewAdmissionService(db, notifService)
