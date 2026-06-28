@@ -32,8 +32,8 @@ WHERE NOT EXISTS (
 );
 
 -- Default Owner user (password: "ChangeMe!2026")
--- The bcrypt hash below is for the literal string "ChangeMe!2026" (cost 10).
--- Owners MUST rotate this password on first login.
+-- Guard by PRIMARY KEY (id) — not email — so this stays idempotent even when
+-- the email column is repopulated with a different value by a seed script.
 INSERT INTO users (
     id, school_id, full_name, email, phone, password_hash,
     role, division_scope, is_active, is_archived, is_verified,
@@ -54,7 +54,7 @@ SELECT
     now(),
     now()
 WHERE NOT EXISTS (
-    SELECT 1 FROM users WHERE email = 'owner@graceacademy.test'
+    SELECT 1 FROM users WHERE id = '00000000-0000-0000-0000-000000000010'::uuid
 );
 
 -- Three divisions
