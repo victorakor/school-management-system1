@@ -28,16 +28,16 @@ func Seed(db *gorm.DB) error {
 	err := db.First(&school, "id = ?", schoolID).Error
 	if err == gorm.ErrRecordNotFound {
 		school = models.School{
-			Base:                models.Base{ID: schoolID},
-			Name:                "Leadership Preparatory Academy – LEAPS",
-			Motto:               "Building Tomorrow's World Now",
-			Address:             "Makurdi, Benue State, Nigeria",
-			Phone:               "",
-			Email:               "",
-			PrimaryColor:        "#0F2557",
-			Prefix:              "LPA",
-			WatermarkEnabled:    false,
-			MaxVideoUploadMB:    100,
+			Base:             models.Base{ID: schoolID},
+			Name:             "Leadership Preparatory Academy – LEAPS",
+			Motto:            "Building Tomorrow's World Now",
+			Address:          "Makurdi, Benue State, Nigeria",
+			Phone:            "",
+			Email:            "",
+			PrimaryColor:     "#0F2557",
+			Prefix:           "LPA",
+			WatermarkEnabled: false,
+			MaxVideoUploadMB: 100,
 		}
 		if err := db.Create(&school).Error; err != nil {
 			return fmt.Errorf("seed: create school: %w", err)
@@ -76,12 +76,12 @@ func Seed(db *gorm.DB) error {
 	if err := db.First(&activeSession, "school_id = ? AND is_active = true", schoolID).Error; err == gorm.ErrRecordNotFound {
 		now := time.Now().UTC()
 		session := models.AcademicSession{
-			Base:       models.Base{ID: uuid.MustParse("00000000-0000-0000-0000-000000000030")},
-			SchoolID:   schoolID,
-			Name:       fmt.Sprintf("%d/%d", now.Year(), now.Year()+1),
-			StartDate:  time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC),
-			EndDate:    time.Date(now.Year()+1, 12, 31, 0, 0, 0, 0, time.UTC),
-			IsActive:   true,
+			Base:      models.Base{ID: uuid.MustParse("00000000-0000-0000-0000-000000000030")},
+			SchoolID:  schoolID,
+			Name:      fmt.Sprintf("%d/%d", now.Year(), now.Year()+1),
+			StartDate: time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC),
+			EndDate:   time.Date(now.Year()+1, 12, 31, 0, 0, 0, 0, time.UTC),
+			IsActive:  true,
 		}
 		if err := db.Create(&session).Error; err != nil {
 			return fmt.Errorf("seed: create session: %w", err)
@@ -89,11 +89,13 @@ func Seed(db *gorm.DB) error {
 		logSeed("created active session: %s", session.Name)
 	}
 
-	// ── Default Owner user ─────────────────────────────────────────────────
+	// ─ Default Owner user ─────────────────────────────────────────────────
+	// Look up by email first so we don't conflict with SQL-seeded rows that
+	// use a different UUID but the same email address.
 	var owner models.User
-	ownerID := uuid.MustParse("00000000-0000-0000-0000-000000000010")
-	err = db.First(&owner, "id = ?", ownerID).Error
+	err = db.First(&owner, "email = ?", "owner@leaps.test").Error
 	if err == gorm.ErrRecordNotFound {
+		ownerID := uuid.MustParse("00000000-0000-0000-0000-000000000010")
 		pwHash, hashErr := bcrypt.GenerateFromPassword([]byte("ChangeMe!2026"), bcrypt.DefaultCost)
 		if hashErr != nil {
 			return fmt.Errorf("seed: hash owner password: %w", hashErr)
@@ -114,7 +116,10 @@ func Seed(db *gorm.DB) error {
 			return fmt.Errorf("seed: create owner: %w", err)
 		}
 		logSeed("created default Owner (email=owner@leaps.test, password=ChangeMe!2026 — rotate on first login)")
+	} else if err != nil {
+		return fmt.Errorf("seed: lookup owner: %w", err)
 	}
+	// If the row already exists (from SQL seed), skip silently.
 
 	return nil
 }
