@@ -92,8 +92,9 @@ func Seed(db *gorm.DB) error {
 	// ─ Default Owner user ─────────────────────────────────────────────────
 	// Look up by email first so we don't conflict with SQL-seeded rows that
 	// use a different UUID but the same email address.
+	// ── Default Owner user ─────────────────────────────────────────────────
 	var owner models.User
-	err = db.First(&owner, "email = ?", "owner@leaps.test").Error
+	err = db.Where("email = ?", "owner@leaps.test").First(&owner).Error
 	if err == gorm.ErrRecordNotFound {
 		ownerID := uuid.MustParse("00000000-0000-0000-0000-000000000010")
 		pwHash, hashErr := bcrypt.GenerateFromPassword([]byte("ChangeMe!2026"), bcrypt.DefaultCost)
