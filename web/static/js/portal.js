@@ -127,9 +127,31 @@ function navigateTo(section) {
   loadSection(section);
 }
 
+// Map of section id → the exported init function name in that module
+const SECTION_INIT_FN = {
+  dashboard:    'initDashboard',
+  admissions:   'initAdmissions',
+  students:     'initStudents',
+  attendance:   'initAttendance',
+  scores:       'initScores',
+  results:      'initResults',
+  quizzes:      null,   // handled inline below
+  timetable:    'initTimetable',
+  finance:      'initFinance',
+  feed:         'initFeedAdmin',
+  users:        'initUsers',
+  settings:     'initSettings',
+  notifications:'initNotificationsPage',
+};
+
 async function loadSection(section) {
   state.currentSection = section;
   updateActiveNavItem();
+
+  // Update browser page title
+  const titleEl = $('#portal-page-title');
+  const navItem = NAV_ITEMS.find(n => n.id === section);
+  if (titleEl && navItem) titleEl.textContent = navItem.label;
 
   const content = $('#portal-content');
   if (!content) return;
@@ -140,22 +162,26 @@ async function loadSection(section) {
     content.style.transition = 'opacity 150ms ease-in';
   }
 
-  // Load section module dynamically
   try {
-    const module = await import(`./portal/${section}.js`);
-    if (module.render) {
-      const html = await module.render(state.user);
-      content.innerHTML = html;
-      if (module.init) await module.init(state.user);
+    const fnName = SECTION_INIT_FN[section];
+
+    // Special case: quizzes section shows a list — the proctored quiz module
+    // (quiz.js initQuiz) is launched separately when a student clicks "Start Quiz".
+    if (section === 'quizzes') {
+      await renderQuizzesList(content, state.user);
+    } else if (fnName) {
+      const module = await import(`./portal/${section}.js`);
+      if (typeof module[fnName] === 'function') {
+        await module[fnName](content, state.user);
+      } else {
+        content.innerHTML = renderComingSoon(section);
+      }
+    } else {
+      content.innerHTML = renderComingSoon(section);
     }
-  } catch {
-    content.innerHTML = `
-      <div class="flex items-center justify-center h-64">
-        <div class="text-center">
-          <p class="text-text-secondary">Section coming soon</p>
-          <p class="text-xs text-text-secondary/60 mt-1">${section}</p>
-        </div>
-      </div>`;
+  } catch (err) {
+    console.error(`[portal] failed to load section "${section}":`, err);
+    content.innerHTML = renderComingSoon(section);
   }
 
   // Page enter animation
@@ -167,7 +193,89 @@ async function loadSection(section) {
       content.style.opacity = '1';
       content.style.transform = 'translateY(0)';
     });
+  } else {
+    content.style.opacity = '1';
   }
+}
+
+async function renderQuizzesList(container, user) {
+  const canManage = ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','TEACHER'].includes(user.role);
+  container.innerHTML = `
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold text-primary">Quizzes</h1>
+      ${canManage ? '<button id="create-quiz-btn" class="btn btn-primary">+ Create Quiz</button>' : ''}
+    </div>
+    <div class="flex gap-2 mb-4">
+      <select id="quiz-status-filter" class="input text-sm py-2">
+        <option value="">All Statuses</option>
+        <option value="DRAFT">Draft</option>
+        <option value="ACTIVE">Active</option>
+        <option value="CLOSED">Closed</option>
+      </select>
+    </div>
+    <div id="quizzes-list" class="space-y-3"></div>
+  `;
+
+  document.getElementById('quiz-status-filter').addEventListener('change', loadQuizzes);
+  await loadQuizzes();
+
+  async function loadQuizzes() {
+    const list = document.getElementById('quizzes-list');
+    if (!list) return;
+    const status = document.getElementById('quiz-status-filter')?.value || '';
+    list.innerHTML = `<div class="space-y-3">${Array(4).fill('<div class="skeleton h-20 rounded-2xl"></div>').join('')}</div>`;
+    try {
+      const url = status ? `/api/quizzes?status=${status}` : '/api/quizzes';
+      const data = await api.get(url);
+      const quizzes = data.quizzes || data || [];
+
+      if (!quizzes.length) {
+        list.innerHTML = `<div class="card p-12 text-center text-text-secondary">No quizzes found.</div>`;
+        return;
+      }
+
+      list.innerHTML = quizzes.map(q => {
+        const isActive = q.status === 'ACTIVE';
+        const canStart = ['STUDENT','PUPIL'].includes(user.role) && isActive;
+        return `
+          <div class="card p-5 flex items-center justify-between gap-4">
+            <div class="flex-1 min-w-0">
+              <h3 class="font-semibold text-primary truncate">${q.title}</h3>
+              <div class="flex gap-3 mt-1 flex-wrap">
+                <span class="text-xs text-text-secondary">${q.question_count} questions · ${q.duration_minutes} min</span>
+                <span class="badge ${isActive ? 'badge-success' : q.status === 'DRAFT' ? 'badge-warning' : 'badge-neutral'} text-xs">${q.status}</span>
+              </div>
+            </div>
+            ${canStart ? `<button class="btn btn-primary text-sm start-quiz-btn" data-quiz-id="${q.id}">Start</button>` : ''}
+            ${canManage && q.status === 'DRAFT' ? `<button class="btn btn-ghost text-sm">Edit</button>` : ''}
+          </div>`;
+      }).join('');
+
+      list.querySelectorAll('.start-quiz-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const quizId = btn.dataset.quizId;
+          // Dynamically load the full quiz module and launch it
+          const { initQuiz } = await import('./portal/quiz.js');
+          await initQuiz(quizId);
+        });
+      });
+    } catch (err) {
+      list.innerHTML = `<div class="card p-6 text-danger text-sm">${err.message}</div>`;
+    }
+  }
+}
+
+function renderComingSoon(section) {
+  return `
+    <div class="flex flex-col items-center justify-center h-64 gap-4">
+      <div class="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center">
+        <svg class="w-8 h-8 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+      </div>
+      <div class="text-center">
+        <p class="font-semibold text-primary">Module loading…</p>
+        <p class="text-xs text-text-secondary mt-1 font-mono">${section}</p>
+      </div>
+    </div>`;
 }
 
 function updateActiveNavItem() {

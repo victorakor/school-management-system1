@@ -29,13 +29,13 @@ func Seed(db *gorm.DB) error {
 	if err == gorm.ErrRecordNotFound {
 		school = models.School{
 			Base:                models.Base{ID: schoolID},
-			Name:                "Grace Academy",
-			Motto:               "Knowledge with Discipline",
-			Address:             "Plot 24, Independence Avenue, Abuja, Nigeria",
-			Phone:               "+234-800-000-0001",
-			Email:               "info@graceacademy.test",
+			Name:                "Leadership Preparatory Academy – LEAPS",
+			Motto:               "Building Tomorrow's World Now",
+			Address:             "Makurdi, Benue State, Nigeria",
+			Phone:               "",
+			Email:               "",
 			PrimaryColor:        "#0F2557",
-			Prefix:              "GRA",
+			Prefix:              "LPA",
 			WatermarkEnabled:    false,
 			MaxVideoUploadMB:    100,
 		}
@@ -102,7 +102,7 @@ func Seed(db *gorm.DB) error {
 			Base:          models.Base{ID: ownerID},
 			SchoolID:      schoolID,
 			FullName:      "Default Owner",
-			Email:         "owner@graceacademy.test",
+			Email:         "owner@leaps.test",
 			Phone:         "+234-800-000-0001",
 			PasswordHash:  string(pwHash),
 			Role:          models.RoleOwner,
@@ -113,7 +113,7 @@ func Seed(db *gorm.DB) error {
 		if err := db.Create(&owner).Error; err != nil {
 			return fmt.Errorf("seed: create owner: %w", err)
 		}
-		logSeed("created default Owner (email=owner@graceacademy.test, password=ChangeMe!2026 — rotate on first login)")
+		logSeed("created default Owner (email=owner@leaps.test, password=ChangeMe!2026 — rotate on first login)")
 	}
 
 	return nil

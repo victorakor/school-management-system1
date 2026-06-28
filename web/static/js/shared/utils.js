@@ -195,3 +195,38 @@ export function onVisible(elements, callback, options = {}) {
   (Array.isArray(elements) ? elements : [elements]).forEach(el => observer.observe(el));
   return observer;
 }
+
+// ─── Toast Notifications ──────────────────────────────────────────────────────
+
+export function showToast(message, type = 'info') {
+  const colors = {
+    success: 'bg-success text-white',
+    danger:  'bg-danger text-white',
+    warning: 'bg-warning text-white',
+    info:    'bg-accent text-white',
+  };
+  const toast = document.createElement('div');
+  toast.className = `fixed bottom-6 right-6 z-[200] px-5 py-3 rounded-xl shadow-lg text-sm font-medium ${colors[type] || colors.info} transition-all duration-300`;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  // Animate in
+  requestAnimationFrame(() => { toast.style.opacity = '1'; toast.style.transform = 'translateY(0)'; });
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(8px)';
+    setTimeout(() => toast.remove(), 300);
+  }, 3500);
+}
+
+// ─── Skeleton Helpers ─────────────────────────────────────────────────────────
+
+export function showSkeleton(container, count = 4, heightClass = 'h-28') {
+  if (!container) return;
+  container.innerHTML = Array(count).fill(
+    `<div class="skeleton ${heightClass} rounded-2xl"></div>`
+  ).join('');
+}
+
+export function hideSkeleton(container) {
+  if (!container) container.innerHTML = '';
+}

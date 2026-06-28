@@ -85,12 +85,12 @@ In the Railway dashboard → Go service → **Variables** tab, add every variabl
 
 | Variable | Value / Notes |
 |---|---|
-| `DATABASE_URL` | Copy from Railway PostgreSQL service → **Variables** → `DATABASE_URL` (use the **internal** URL) |
-| `REDIS_URL` | Copy from Railway Redis service → **Variables** → `REDIS_URL` (use the **internal** URL, format: `host:port` without `redis://` prefix if asynq needs it bare) |
-| `JWT_SECRET` | Random 256-bit secret. Generate: `openssl rand -hex 32` |
-| `JWT_REFRESH_SECRET` | A different random 256-bit secret. Generate: `openssl rand -hex 32` |
-| `CSRF_SECRET` | Another random secret. Generate: `openssl rand -hex 32` |
-| `APP_BASE_URL` | Your production URL, e.g. `https://yourschool.com` — used in QR codes. Use the Railway-generated URL until you set up a custom domain. |
+| `DATABASE_URL` | Copy from Railway PostgreSQL service → **Variables** → `DATABASE_URL = postgresql://postgres:yrvWbxVRgoELHLtEUWfjUtyEbYpPXdMM@postgres.railway.internal:5432/railway` (use the **internal** URL) |
+| `REDIS_URL = redis://default:OMqGYlMxPrBFvttZmSrpFQChHuTxHwCn@redis.railway.internal:6379` | Copy from Railway Redis service → **Variables** → `REDIS_URL` (use the **internal** URL, format: `host:port` without `redis://` prefix if asynq needs it bare) |
+| `JWT_SECRET = f3890931a822e964d49bb949a79ec162d11437bad251f33a31a916c466edccef` | Random 256-bit secret. Generate: `openssl rand -hex 32` |
+| `JWT_REFRESH_SECRET = 6b4b5a57c9fd3e210f3d2603d02008937f0dda3fb27342775bd0ef550c37d60b` | A different random 256-bit secret. Generate: `openssl rand -hex 32` |
+| `CSRF_SECRET = 914d2c2b132e51b6a12ad26e32ef5271c25ade832742071811d3efb535a5009a` | Another random secret. Generate: `openssl rand -hex 32` |
+| `APP_BASE_URL = leaps-edu.up.railway.app` | Your production URL, e.g. `https://yourschool.com` — used in QR codes. Use the Railway-generated URL until you set up a custom domain. |
 | `ENVIRONMENT` | `production` |
 | `CHROMIUM_PATH` | `/usr/bin/chromium` (set by the Dockerfile — Chromium is installed at this path in the container) |
 
@@ -98,22 +98,22 @@ In the Railway dashboard → Go service → **Variables** tab, add every variabl
 
 | Variable | Value / Notes |
 |---|---|
-| `CLOUDINARY_CLOUD_NAME` | Your Cloudinary cloud name (from dashboard) |
-| `CLOUDINARY_API_KEY` | Your Cloudinary API key |
-| `CLOUDINARY_API_SECRET` | Your Cloudinary API secret |
-| `CLOUDINARY_UPLOAD_PRESET` | Name of your signed upload preset (create in Cloudinary dashboard → Settings → Upload → Upload presets) |
+| `CLOUDINARY_CLOUD_NAME = df4natxfq` | Your Cloudinary cloud name (from dashboard) |
+| `CLOUDINARY_API_KEY = 513643525777182` | Your Cloudinary API key |
+| `CLOUDINARY_API_SECRET = jmtq4DdyBXdhrXAJhkhjGRn_UFE` | Your Cloudinary API secret |
+| `CLOUDINARY_UPLOAD_PRESET = schoolmgt` | Name of your signed upload preset (create in Cloudinary dashboard → Settings → Upload → Upload presets) |
 
 ### Email (OTP and verification)
 
 | Variable | Value / Notes |
 |---|---|
-| `RESEND_API_KEY` | API key from [Resend dashboard](https://resend.com) — `re_xxxx...` |
+| `RESEND_API_KEY = re_QPW2KnQQ_CHZzvvAheeVAqdknivEkfpZY` | API key from [Resend dashboard](https://resend.com) — `re_xxxx...` |
 
 ### Error Tracking
 
 | Variable | Value / Notes |
 |---|---|
-| `SENTRY_DSN` | DSN from [Sentry dashboard](https://sentry.io) — create a Go project |
+| `SENTRY_DSN = https://0834e3e2b6e3079346ee1369287b61c6@o4511639963959296.ingest.de.sentry.io/4511640226365520` | DSN from [Sentry dashboard](https://sentry.io) — create a Go project |
 
 ### Rate Limiting (optional — defaults are set in config)
 
@@ -243,7 +243,7 @@ To add it as a Railway service:
 PORT=8080                          # Set automatically by Railway — do not set manually
 DATABASE_URL=                      # Railway PostgreSQL internal URL
 REDIS_URL=                         # Railway Redis internal URL (host:port format)
-ENVIRONMENT=production             # production | staging | development
+ENVIRONMENT = production             # production | staging | development
 APP_BASE_URL=https://yourschool.com
 
 # ─── Auth & Security ──────────────────────────────────────────────────────────
@@ -298,3 +298,10 @@ RATE_LIMIT_WINDOW=1m
 
 *RAILWAY_SETUP.md — School Management Platform*
 *Update this document whenever infrastructure changes are made.*
+
+
+here is the school logo, the name is Leadership Preparatory Academy - LEAPS, 
+
+location Makurdi, Benue state
+
+motto: building tomorrow's world now

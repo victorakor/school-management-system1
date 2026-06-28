@@ -92,6 +92,7 @@ func main() {
 	studentsHandler := handlers.NewStudentsHandler(db, cfg)
 	announcementsHandler := handlers.NewAnnouncementsHandler(db, cfg)
 	documentsHandler := handlers.NewDocumentsHandler(db, cfg)
+	pagesHandler := handlers.NewPagesHandler(db)
 
 	// ─── Router ───────────────────────────────────────────────────────────────
 	r := chi.NewRouter()
@@ -329,18 +330,22 @@ func main() {
 	})
 
 	// ─── Server-Rendered Pages ────────────────────────────────────────────────
-	r.Get("/", serveTemplate("web/templates/public/index.html"))
-	r.Get("/about", serveTemplate("web/templates/public/about.html"))
-	r.Get("/admissions", serveTemplate("web/templates/public/admissions.html"))
-	r.Get("/feed", serveTemplate("web/templates/public/feed.html"))
-	r.Get("/verify", serveTemplate("web/templates/public/verify.html"))
-	r.Get("/divisions/nursery", serveTemplate("web/templates/public/divisions/nursery.html"))
-	r.Get("/divisions/primary", serveTemplate("web/templates/public/divisions/primary.html"))
-	r.Get("/divisions/secondary", serveTemplate("web/templates/public/divisions/secondary.html"))
-	r.Get("/login", serveTemplate("web/templates/auth/login.html"))
-	r.Get("/register", serveTemplate("web/templates/auth/register.html"))
-	r.Get("/portal", serveTemplate("web/templates/portal.html"))
-	r.Get("/portal/*", serveTemplate("web/templates/portal.html"))
+	// All pages use middleware.CSRFProtect so the CSRF token is in context.
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.CSRFProtect(cfg))
+		r.Get("/", pagesHandler.ServePage("web/templates/public/index.html", "", "Leadership Preparatory Academy – LEAPS. Nursery, Primary and Secondary education in Makurdi, Benue State."))
+		r.Get("/about", pagesHandler.ServePage("web/templates/public/about.html", "About Us", "Learn about Leadership Preparatory Academy – LEAPS, Makurdi, Benue State."))
+		r.Get("/admissions", pagesHandler.ServePage("web/templates/public/admissions.html", "Admissions", "Apply to Leadership Preparatory Academy – LEAPS."))
+		r.Get("/feed", pagesHandler.ServePage("web/templates/public/feed.html", "Activities", "School activities and news from LEAPS."))
+		r.Get("/verify", pagesHandler.ServePage("web/templates/public/verify.html", "Verify Document", "Verify an official document issued by LEAPS."))
+		r.Get("/divisions/nursery", pagesHandler.ServePage("web/templates/public/divisions/nursery.html", "Nursery Division", "Nursery division at Leadership Preparatory Academy."))
+		r.Get("/divisions/primary", pagesHandler.ServePage("web/templates/public/divisions/primary.html", "Primary Division", "Primary division at Leadership Preparatory Academy."))
+		r.Get("/divisions/secondary", pagesHandler.ServePage("web/templates/public/divisions/secondary.html", "Secondary Division", "Secondary division at Leadership Preparatory Academy."))
+		r.Get("/login", pagesHandler.ServePage("web/templates/auth/login.html", "Sign In", "Sign in to the LEAPS portal."))
+		r.Get("/register", pagesHandler.ServePage("web/templates/auth/register.html", "Create Account", "Register a parent account on the LEAPS portal."))
+		r.Get("/portal", pagesHandler.ServePortal)
+		r.Get("/portal/*", pagesHandler.ServePortal)
+	})
 
 	// ─── asynq Worker ─────────────────────────────────────────────────────────
 	asynqServer := startWorker(cfg, db, emailService, pdfGenerator, cfg.AppBaseURL)
@@ -426,12 +431,6 @@ func extractHost(baseURL string) string {
 		u = u[:i]
 	}
 	return u
-}
-
-func serveTemplate(path string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, path)
-	}
 }
 
 var _ = models.AllModels
