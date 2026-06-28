@@ -74,10 +74,28 @@ func (h *DashboardHandler) Stats(w http.ResponseWriter, r *http.Request) {
 		stats["debtor_count"] = debtorCountInDivision(h.db, claims.SchoolID, claims.DivisionScope)
 	}
 
-	if claims.Role == models.RoleTeacher {
+	if claims.Role == models.RoleTeacher || claims.Role == models.RoleClassTeacher {
 		stats["assigned_classes"] = assignedClassCount(h.db, claims.UserID)
 		stats["draft_scores"] = draftScoreCount(h.db, claims.UserID)
 		stats["active_quizzes"] = activeQuizCountForTeacher(h.db, claims.UserID)
+	}
+
+	if claims.Role == models.RoleExamOfficer {
+		stats["pending_score_approvals"] = pendingScoreApprovalsSchoolWide(h.db, claims.SchoolID)
+		stats["active_quizzes"] = countActiveQuizzes(h.db, claims.SchoolID)
+	}
+
+	if claims.Role == models.RoleAdmissionsOfficer {
+		stats["pending_applications"] = countPendingApplications(h.db, claims.SchoolID)
+		stats["under_review_applications"] = countUnderReviewApplications(h.db, claims.SchoolID)
+	}
+
+	if claims.Role == models.RoleBlogManager {
+		stats["published_posts"] = countPublishedPosts(h.db, claims.SchoolID)
+	}
+
+	if claims.Role == models.RoleICTAdmin {
+		stats["total_users"] = countStaff(h.db, claims.SchoolID)
 	}
 
 	if claims.Role == models.RoleStudent || claims.Role == models.RolePupil {
@@ -95,6 +113,34 @@ func (h *DashboardHandler) Stats(w http.ResponseWriter, r *http.Request) {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+func pendingScoreApprovalsSchoolWide(db *gorm.DB, schoolID uuid.UUID) int64 {
+	var n int64
+	db.Model(&models.ScoreEntry{}).
+		Joins("JOIN classes ON classes.id = score_entries.class_id").
+		Joins("JOIN divisions ON divisions.id = classes.division_id").
+		Where("score_entries.status = ? AND divisions.school_id = ?",
+			models.ScoreStatusSubmitted, schoolID).
+		Count(&n)
+	return n
+}
+
+func countUnderReviewApplications(db *gorm.DB, schoolID uuid.UUID) int64 {
+	var n int64
+	db.Model(&models.Application{}).
+		Where("school_id = ? AND is_archived = false AND status = ?",
+			schoolID, models.AppStatusUnderReview).
+		Count(&n)
+	return n
+}
+
+func countPublishedPosts(db *gorm.DB, schoolID uuid.UUID) int64 {
+	var n int64
+	db.Model(&models.ActivityPost{}).
+		Where("school_id = ? AND is_archived = false AND is_published = true", schoolID).
+		Count(&n)
+	return n
+}
 
 func countStudents(db *gorm.DB, schoolID uuid.UUID, alumni bool) int64 {
 	var n int64

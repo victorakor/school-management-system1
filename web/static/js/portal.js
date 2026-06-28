@@ -34,17 +34,17 @@ async function init() {
 
 const NAV_ITEMS = [
   { id: 'dashboard',   label: 'Dashboard',    icon: 'home',         roles: ['ALL'] },
-  { id: 'admissions',  label: 'Admissions',   icon: 'file-text',    roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','PARENT'] },
-  { id: 'students',    label: 'Students',     icon: 'users',        roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER'] },
-  { id: 'attendance',  label: 'Attendance',   icon: 'check-square', roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','TEACHER'] },
-  { id: 'scores',      label: 'Scores',       icon: 'edit-3',       roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','TEACHER'] },
-  { id: 'results',     label: 'Results',      icon: 'bar-chart-2',  roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','STUDENT','PUPIL','PARENT'] },
-  { id: 'quizzes',     label: 'Quizzes',      icon: 'help-circle',  roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','TEACHER','STUDENT','PUPIL'] },
+  { id: 'admissions',  label: 'Admissions',   icon: 'file-text',    roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','ADMISSIONS_OFFICER','PARENT'] },
+  { id: 'students',    label: 'Students',     icon: 'users',        roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','EXAM_OFFICER'] },
+  { id: 'attendance',  label: 'Attendance',   icon: 'check-square', roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','TEACHER','CLASS_TEACHER'] },
+  { id: 'scores',      label: 'Scores',       icon: 'edit-3',       roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','EXAM_OFFICER','TEACHER','CLASS_TEACHER'] },
+  { id: 'results',     label: 'Results',      icon: 'bar-chart-2',  roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','EXAM_OFFICER','STUDENT','PUPIL','PARENT'] },
+  { id: 'quizzes',     label: 'Quizzes',      icon: 'help-circle',  roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','EXAM_OFFICER','TEACHER','CLASS_TEACHER','STUDENT','PUPIL'] },
   { id: 'timetable',   label: 'Timetable',    icon: 'calendar',     roles: ['ALL'] },
   { id: 'finance',     label: 'Finance',      icon: 'dollar-sign',  roles: ['OWNER','BURSAR','PARENT'] },
   { id: 'feed',        label: 'Activities',   icon: 'image',        roles: ['ALL'] },
-  { id: 'users',       label: 'Staff',        icon: 'user-check',   roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER'] },
-  { id: 'settings',    label: 'Settings',     icon: 'settings',     roles: ['OWNER'] },
+  { id: 'users',       label: 'Staff',        icon: 'user-check',   roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','ICT_ADMIN'] },
+  { id: 'settings',    label: 'Settings',     icon: 'settings',     roles: ['OWNER','ICT_ADMIN'] },
 ];
 
 function renderSidebar() {
@@ -328,16 +328,21 @@ function initMobileNav() {
 
 function formatRole(role) {
   const map = {
-    OWNER: 'School Owner',
-    PRINCIPAL: 'Principal',
-    VICE_PRINCIPAL: 'Vice Principal',
-    HEAD_TEACHER: 'Head Teacher',
-    ASST_HEAD_TEACHER: 'Asst. Head Teacher',
-    BURSAR: 'Bursar',
-    TEACHER: 'Teacher',
-    STUDENT: 'Student',
-    PUPIL: 'Pupil',
-    PARENT: 'Parent',
+    OWNER:               'School Owner',
+    PRINCIPAL:           'Principal',
+    VICE_PRINCIPAL:      'Vice Principal',
+    HEAD_TEACHER:        'Head Teacher',
+    ASST_HEAD_TEACHER:   'Asst. Head Teacher',
+    EXAM_OFFICER:        'Exam Officer',
+    ADMISSIONS_OFFICER:  'Admissions Officer',
+    BURSAR:              'Bursar',
+    TEACHER:             'Teacher',
+    CLASS_TEACHER:       'Class Teacher',
+    STUDENT:             'Student',
+    PUPIL:               'Pupil',
+    PARENT:              'Parent',
+    BLOG_MANAGER:        'Blog / Media Manager',
+    ICT_ADMIN:           'ICT Administrator',
   };
   return map[role] || role;
 }

@@ -239,9 +239,13 @@ func main() {
 			r.Get("/scores/sheet", scoresHandler.GetScoreSheet)
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.RequirePermission(permissions.PermEnterScores))
-				r.Post("/scores/structure", scoresHandler.UpsertScoreStructure)
 				r.Post("/scores/save", scoresHandler.SaveScores)
 				r.Post("/scores/{id}/unlock-request", scoresHandler.RequestUnlock)
+			})
+			r.Group(func(r chi.Router) {
+				// Exam Officer + senior staff can configure score structure
+				r.Use(middleware.RequirePermission(permissions.PermConfigureAssessments))
+				r.Post("/scores/structure", scoresHandler.UpsertScoreStructure)
 			})
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.RequirePermission(permissions.PermApproveScores))

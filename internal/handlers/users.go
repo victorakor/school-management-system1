@@ -426,6 +426,26 @@ func (h *UsersHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Only staff roles may be created via this endpoint.
+	// Students and pupils are created via the admissions workflow.
+	// Parents self-register. The Owner account is seeded at setup.
+	if !isCreatableStaffRole(req.Role) {
+		utils.RespondError(w, http.StatusBadRequest, "Role '"+string(req.Role)+"' cannot be assigned via staff management — use the appropriate workflow")
+		return
+	}
+
+	// Only the Owner may create these senior/system roles.
+	ownerOnlyRoles := map[models.Role]bool{
+		models.RolePrincipal:     true,
+		models.RoleVicePrincipal: true,
+		models.RoleHeadTeacher:   true,
+		models.RoleICTAdmin:      true,
+	}
+	if ownerOnlyRoles[req.Role] && claims.Role != models.RoleOwner {
+		utils.RespondError(w, http.StatusForbidden, "Only the School Owner may create this role")
+		return
+	}
+
 	// Check email uniqueness
 	var existing models.User
 	if err := h.db.Where("email = ?", req.Email).First(&existing).Error; err == nil {
@@ -530,4 +550,25 @@ func (h *UsersHandler) ArchiveUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.RespondSuccess(w, http.StatusOK, "User archived successfully", nil)
+}
+
+// isCreatableStaffRole returns true for roles that can be created via the
+// staff management endpoint. Students, pupils, and parents use separate flows.
+// The Owner is seeded at setup and cannot be created via the API.
+func isCreatableStaffRole(role models.Role) bool {
+	switch role {
+	case models.RolePrincipal,
+		models.RoleVicePrincipal,
+		models.RoleHeadTeacher,
+		models.RoleAsstHeadTeacher,
+		models.RoleExamOfficer,
+		models.RoleAdmissionsOfficer,
+		models.RoleBursar,
+		models.RoleTeacher,
+		models.RoleClassTeacher,
+		models.RoleBlogManager,
+		models.RoleICTAdmin:
+		return true
+	}
+	return false
 }
