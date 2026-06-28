@@ -11,12 +11,19 @@ import (
 
 // EmailService sends transactional emails via the Resend REST API.
 type EmailService struct {
-	apiKey  string
+	apiKey   string
 	fromAddr string
 }
 
 // NewEmailService creates a new EmailService.
+// Returns nil if apiKey is empty so callers can treat a missing key as
+// "email not configured" and skip sending rather than making unauthenticated
+// requests to Resend that will always return 401/403.
 func NewEmailService(apiKey, fromAddr string) *EmailService {
+	if apiKey == "" {
+		log.Warn().Msg("email: RESEND_API_KEY not set — email sending disabled")
+		return nil
+	}
 	return &EmailService{apiKey: apiKey, fromAddr: fromAddr}
 }
 
