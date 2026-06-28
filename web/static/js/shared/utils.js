@@ -192,7 +192,11 @@ export function onVisible(elements, callback, options = {}) {
     });
   }, { threshold: 0.1, ...options });
 
-  (Array.isArray(elements) ? elements : [elements]).forEach(el => observer.observe(el));
+  // Accept NodeList, Array, or single element — filter out nulls
+  const els = Array.from(
+    Array.isArray(elements) || elements instanceof NodeList ? elements : [elements]
+  ).filter(Boolean);
+  els.forEach(el => observer.observe(el));
   return observer;
 }
 
