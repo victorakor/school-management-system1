@@ -13,6 +13,7 @@ import (
 	"school-platform/internal/models"
 	"school-platform/internal/services"
 	"school-platform/internal/utils"
+	"school-platform/internal/validators"
 )
 
 // ResultsHandler handles result calculation, remarks, and publication.
@@ -198,4 +199,73 @@ func (h *ResultsHandler) PublishResults(w http.ResponseWriter, r *http.Request) 
 	}
 
 	utils.RespondSuccess(w, http.StatusOK, "Results published successfully", nil)
+}
+
+// ─── Owner Override ────────────────────────────────────────────────────────────
+
+// OverrideResult handles PUT /api/results/:id/override (Owner only)
+// Allows the owner to force-edit a published or locked result.
+// All overrides are fully audit-logged.
+func (h *ResultsHandler) OverrideResult(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r)
+	resultID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		utils.RespondError(w, http.StatusBadRequest, "Invalid result ID")
+		return
+	}
+
+	var req struct {
+		ClassTeacherRemark string `json:"class_teacher_remark"`
+		AdminRemark        string `json:"admin_remark"`
+		Reason             string `json:"reason"` // mandatory for audit trail
+	}
+	if err := utils.ReadJSON(r, &req); err != nil {
+		utils.RespondError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	v := validators.New()
+	v.Required("reason", req.Reason, "Override reason")
+	if v.HasErrors() {
+		utils.RespondJSON(w, http.StatusUnprocessableEntity, map[string]interface{}{"errors": v.Errors()})
+		return
+	}
+
+	var result models.Result
+	if err := h.db.Joins("JOIN students ON students.id = results.student_id").
+		Where("results.id = ? AND students.school_id = ?", resultID, claims.SchoolID).
+		First(&result).Error; err != nil {
+		utils.RespondError(w, http.StatusNotFound, "Result not found")
+		return
+	}
+
+	updates := map[string]interface{}{}
+	if req.ClassTeacherRemark != "" {
+		updates["class_teacher_remark"] = req.ClassTeacherRemark
+	}
+	if req.AdminRemark != "" {
+		updates["admin_remark"] = req.AdminRemark
+	}
+
+	if len(updates) == 0 {
+		utils.RespondError(w, http.StatusBadRequest, "No fields to update")
+		return
+	}
+
+	if err := h.db.Model(&models.Result{}).Where("id = ?", resultID).Updates(updates).Error; err != nil {
+		utils.RespondError(w, http.StatusInternalServerError, "Failed to override result")
+		return
+	}
+
+	middleware.Record(h.db, r, middleware.AuditAction{
+		Action:     "override_result",
+		EntityType: "result",
+		EntityID:   resultID.String(),
+		Metadata: map[string]interface{}{
+			"reason":     req.Reason,
+			"updated_by": claims.UserID.String(),
+		},
+	})
+
+	utils.RespondSuccess(w, http.StatusOK, "Result overridden successfully", nil)
 }

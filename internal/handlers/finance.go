@@ -272,3 +272,142 @@ func (h *FinanceHandler) ApplyDiscount(w http.ResponseWriter, r *http.Request) {
 	}
 	utils.RespondSuccess(w, http.StatusCreated, "Discount applied", discount)
 }
+
+// ─── Finance Reports (Owner / Bursar) ─────────────────────────────────────────
+
+// GetFinanceSummary handles GET /api/finance/summary
+// Returns school-wide income, outstanding debts, and payment counts.
+// Owner sees all divisions; Bursar sees only their DivisionScope.
+func (h *FinanceHandler) GetFinanceSummary(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r)
+
+	type summaryResult struct {
+		TotalCollected   float64 `json:"total_collected"`
+		TotalOutstanding float64 `json:"total_outstanding"`
+		DebtorCount      int64   `json:"debtor_count"`
+		PaymentCount     int64   `json:"payment_count"`
+	}
+
+	query := h.db.Table("fee_payments fp").
+		Joins("JOIN students s ON s.id = fp.student_id").
+		Where("s.school_id = ? AND fp.is_archived = false", claims.SchoolID)
+
+	// Scope Bursar to their division
+	if claims.Role == models.RoleBursar && claims.DivisionScope != models.DivisionAll {
+		query = query.
+			Joins("JOIN divisions d ON d.id = s.division_id").
+			Where("d.name = ?", claims.DivisionScope)
+	}
+
+	var result summaryResult
+	query.Select(`
+		COALESCE(SUM(fp.amount_paid), 0) AS total_collected,
+		COALESCE(SUM(CASE WHEN fp.balance_after > 0 THEN fp.balance_after ELSE 0 END), 0) AS total_outstanding,
+		COUNT(CASE WHEN fp.balance_after > 0 THEN 1 END) AS debtor_count,
+		COUNT(*) AS payment_count`).
+		Scan(&result)
+
+	utils.RespondSuccess(w, http.StatusOK, "", result)
+}
+
+// GetIncomeReport handles GET /api/finance/reports/income
+// Returns payments grouped by date range. Query params: from, to (YYYY-MM-DD).
+func (h *FinanceHandler) GetIncomeReport(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r)
+
+	query := h.db.Table("fee_payments fp").
+		Joins("JOIN students s ON s.id = fp.student_id").
+		Where("s.school_id = ? AND fp.is_archived = false", claims.SchoolID)
+
+	if from := r.URL.Query().Get("from"); from != "" {
+		if t, err := time.Parse("2006-01-02", from); err == nil {
+			query = query.Where("fp.payment_date >= ?", t)
+		}
+	}
+	if to := r.URL.Query().Get("to"); to != "" {
+		if t, err := time.Parse("2006-01-02", to); err == nil {
+			query = query.Where("fp.payment_date < ?", t.Add(24*time.Hour))
+		}
+	}
+	if div := r.URL.Query().Get("division"); div != "" {
+		query = query.
+			Joins("JOIN divisions d ON d.id = s.division_id").
+			Where("d.name = ?", div)
+	}
+
+	type paymentRow struct {
+		PaymentDate   time.Time `json:"payment_date"`
+		StudentName   string    `json:"student_name"`
+		CategoryName  string    `json:"category_name"`
+		AmountPaid    float64   `json:"amount_paid"`
+		AmountOwed    float64   `json:"amount_owed"`
+		BalanceAfter  float64   `json:"balance_after"`
+		ReceiptRef    string    `json:"receipt_ref"`
+	}
+
+	var payments []paymentRow
+	query.Select(`
+		fp.payment_date, s.full_name AS student_name,
+		fp.category_name, fp.amount_paid, fp.amount_owed,
+		fp.balance_after, fp.receipt_ref`).
+		Order("fp.payment_date DESC").
+		Limit(500).
+		Scan(&payments)
+
+	if payments == nil {
+		payments = []paymentRow{}
+	}
+
+	utils.RespondSuccess(w, http.StatusOK, "", map[string]interface{}{
+		"payments": payments,
+		"count":    len(payments),
+	})
+}
+
+// GetDebtReport handles GET /api/finance/reports/debts
+// Returns students with outstanding balances.
+func (h *FinanceHandler) GetDebtReport(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r)
+
+	type debtRow struct {
+		StudentID    string  `json:"student_id"`
+		StudentName  string  `json:"student_name"`
+		AdmissionID  string  `json:"admission_id"`
+		CategoryName string  `json:"category_name"`
+		AmountOwed   float64 `json:"amount_owed"`
+		AmountPaid   float64 `json:"amount_paid"`
+		BalanceAfter float64 `json:"balance_after"`
+	}
+
+	query := h.db.Table("fee_payments fp").
+		Joins("JOIN students s ON s.id = fp.student_id").
+		Where("s.school_id = ? AND fp.is_archived = false AND fp.balance_after > 0", claims.SchoolID)
+
+	if div := r.URL.Query().Get("division"); div != "" {
+		query = query.
+			Joins("JOIN divisions d ON d.id = s.division_id").
+			Where("d.name = ?", div)
+	}
+
+	var debts []debtRow
+	query.Select(`
+		s.id AS student_id, s.full_name AS student_name, s.admission_id,
+		fp.category_name, fp.amount_owed, fp.amount_paid, fp.balance_after`).
+		Order("fp.balance_after DESC").
+		Scan(&debts)
+
+	if debts == nil {
+		debts = []debtRow{}
+	}
+
+	var totalOutstanding float64
+	for _, d := range debts {
+		totalOutstanding += d.BalanceAfter
+	}
+
+	utils.RespondSuccess(w, http.StatusOK, "", map[string]interface{}{
+		"debts":             debts,
+		"total_outstanding": totalOutstanding,
+		"debtor_count":      len(debts),
+	})
+}

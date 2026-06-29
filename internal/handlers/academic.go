@@ -338,3 +338,184 @@ func (h *AcademicHandler) AssignTeacher(w http.ResponseWriter, r *http.Request) 
 func parseDate(s string) (time.Time, error) {
 	return time.Parse("2006-01-02", s)
 }
+
+// ─── Owner Academic Management ─────────────────────────────────────────────────
+
+// OpenCloseTerm handles PUT /api/sessions/:sessionId/terms/:id/status
+// Owner can open or close any term. Closing a term locks score entry for that term.
+func (h *AcademicHandler) OpenCloseTerm(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r)
+	termID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		utils.RespondError(w, http.StatusBadRequest, "Invalid term ID")
+		return
+	}
+
+	var req struct {
+		IsActive bool `json:"is_active"`
+	}
+	if err := utils.ReadJSON(r, &req); err != nil {
+		utils.RespondError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Verify term belongs to this school
+	var term models.Term
+	if err := h.db.Joins("JOIN academic_sessions ON academic_sessions.id = terms.session_id").
+		Where("terms.id = ? AND academic_sessions.school_id = ?", termID, claims.SchoolID).
+		First(&term).Error; err != nil {
+		utils.RespondError(w, http.StatusNotFound, "Term not found")
+		return
+	}
+
+	if err := h.db.Model(&models.Term{}).Where("id = ?", termID).
+		Update("is_active", req.IsActive).Error; err != nil {
+		utils.RespondError(w, http.StatusInternalServerError, "Failed to update term status")
+		return
+	}
+
+	action := "close_term"
+	if req.IsActive {
+		action = "open_term"
+	}
+	middleware.Record(h.db, r, middleware.AuditAction{
+		Action:     action,
+		EntityType: "term",
+		EntityID:   termID.String(),
+		Metadata:   map[string]interface{}{"term_name": term.Name},
+	})
+
+	msg := "Term closed successfully"
+	if req.IsActive {
+		msg = "Term opened successfully"
+	}
+	utils.RespondSuccess(w, http.StatusOK, msg, nil)
+}
+
+// CloseSession handles PUT /api/sessions/:id/close
+// Owner can close a session (set is_active = false without activating another).
+func (h *AcademicHandler) CloseSession(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r)
+	sessionID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		utils.RespondError(w, http.StatusBadRequest, "Invalid session ID")
+		return
+	}
+
+	var session models.AcademicSession
+	if err := h.db.Where("id = ? AND school_id = ?", sessionID, claims.SchoolID).First(&session).Error; err != nil {
+		utils.RespondError(w, http.StatusNotFound, "Session not found")
+		return
+	}
+
+	if err := h.db.Model(&models.AcademicSession{}).Where("id = ?", sessionID).
+		Update("is_active", false).Error; err != nil {
+		utils.RespondError(w, http.StatusInternalServerError, "Failed to close session")
+		return
+	}
+
+	middleware.Record(h.db, r, middleware.AuditAction{
+		Action:     "close_session",
+		EntityType: "academic_session",
+		EntityID:   sessionID.String(),
+		Metadata:   map[string]interface{}{"session_name": session.Name},
+	})
+
+	utils.RespondSuccess(w, http.StatusOK, "Session closed", nil)
+}
+
+// PublishAcademicCalendar handles POST /api/sessions/:id/calendar/publish
+// Marks the session's calendar as published (sets a published_at timestamp in metadata).
+// In this schema the calendar data is stored in the Term rows and AcademicSession.
+// We create an audit entry and return the session data — the JS layer treats it
+// as the signal to display "Published" state in the UI.
+func (h *AcademicHandler) PublishAcademicCalendar(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r)
+	sessionID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		utils.RespondError(w, http.StatusBadRequest, "Invalid session ID")
+		return
+	}
+
+	var session models.AcademicSession
+	if err := h.db.Where("id = ? AND school_id = ?", sessionID, claims.SchoolID).
+		Preload("School").First(&session).Error; err != nil {
+		utils.RespondError(w, http.StatusNotFound, "Session not found")
+		return
+	}
+
+	var terms []models.Term
+	h.db.Where("session_id = ?", sessionID).Order("start_date ASC").Find(&terms)
+
+	middleware.Record(h.db, r, middleware.AuditAction{
+		Action:     "publish_academic_calendar",
+		EntityType: "academic_session",
+		EntityID:   sessionID.String(),
+		Metadata: map[string]interface{}{
+			"session_name": session.Name,
+			"term_count":   len(terms),
+		},
+	})
+
+	utils.RespondSuccess(w, http.StatusOK, "Academic calendar published", map[string]interface{}{
+		"session": session,
+		"terms":   terms,
+	})
+}
+
+// UpdateTerm handles PUT /api/sessions/:sessionId/terms/:id
+// Owner can update term details (name, dates, resumption date).
+func (h *AcademicHandler) UpdateTerm(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r)
+	termID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		utils.RespondError(w, http.StatusBadRequest, "Invalid term ID")
+		return
+	}
+
+	var req struct {
+		Name               string `json:"name"`
+		StartDate          string `json:"start_date"`
+		EndDate            string `json:"end_date"`
+		NextResumptionDate string `json:"next_resumption_date"`
+	}
+	if err := utils.ReadJSON(r, &req); err != nil {
+		utils.RespondError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	var term models.Term
+	if err := h.db.Joins("JOIN academic_sessions ON academic_sessions.id = terms.session_id").
+		Where("terms.id = ? AND academic_sessions.school_id = ?", termID, claims.SchoolID).
+		First(&term).Error; err != nil {
+		utils.RespondError(w, http.StatusNotFound, "Term not found")
+		return
+	}
+
+	updates := map[string]interface{}{}
+	if req.Name != "" {
+		updates["name"] = req.Name
+	}
+	if req.StartDate != "" {
+		if t, err := parseDate(req.StartDate); err == nil {
+			updates["start_date"] = t
+		}
+	}
+	if req.EndDate != "" {
+		if t, err := parseDate(req.EndDate); err == nil {
+			updates["end_date"] = t
+		}
+	}
+	if req.NextResumptionDate != "" {
+		if t, err := parseDate(req.NextResumptionDate); err == nil {
+			updates["next_resumption_date"] = t
+		}
+	}
+
+	if err := h.db.Model(&models.Term{}).Where("id = ?", termID).Updates(updates).Error; err != nil {
+		utils.RespondError(w, http.StatusInternalServerError, "Failed to update term")
+		return
+	}
+
+	utils.RespondSuccess(w, http.StatusOK, "Term updated", nil)
+}

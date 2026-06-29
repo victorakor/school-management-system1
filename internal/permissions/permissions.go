@@ -79,6 +79,9 @@ const (
 
 	// ICT / system administration (no academic or finance access)
 	PermManageSystemConfig Permission = "manage_system_config" // passwords, backups, email/SMS config, health
+
+	// Audit log access (Owner only — cannot be delegated)
+	PermViewAuditLogs Permission = "view_audit_logs"
 )
 
 // ─── Role → Permission map ─────────────────────────────────────────────────────
@@ -137,6 +140,7 @@ var rolePermissions = map[models.Role][]Permission{
 		PermCommunicateParents,
 		PermEnterBehaviouralAssessment,
 		PermManageSystemConfig,
+		PermViewAuditLogs,
 	},
 
 	// ── Principal (Secondary scope) ───────────────────────────────────────────

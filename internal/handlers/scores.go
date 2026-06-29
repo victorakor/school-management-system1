@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -113,6 +114,54 @@ func (h *ScoresHandler) UpsertScoreStructure(w http.ResponseWriter, r *http.Requ
 }
 
 // ─── Score Entry ───────────────────────────────────────────────────────────────
+
+// ListScores handles GET /api/scores — lists score entries, optionally filtered by status.
+// Used by the dashboard "Pending Approvals" panel and the scores management screen.
+func (h *ScoresHandler) ListScores(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r)
+
+	type scoreRow struct {
+		ID          uuid.UUID          `json:"id"`
+		SubjectName string             `json:"subject_name"`
+		ClassName   string             `json:"class_name"`
+		TeacherName string             `json:"teacher_name"`
+		Status      models.ScoreStatus `json:"status"`
+		SubmittedAt *string            `json:"submitted_at"`
+	}
+
+	query := h.db.
+		Model(&models.ScoreEntry{}).
+		Select(`score_entries.id,
+		        subjects.name  AS subject_name,
+		        classes.name   AS class_name,
+		        users.full_name AS teacher_name,
+		        score_entries.status,
+		        score_entries.submitted_at`).
+		Joins("JOIN subjects ON subjects.id = score_entries.subject_id").
+		Joins("JOIN classes  ON classes.id  = score_entries.class_id").
+		Joins("JOIN divisions ON divisions.id = classes.division_id").
+		Joins("LEFT JOIN users ON users.id = score_entries.teacher_id").
+		Where("divisions.school_id = ?", claims.SchoolID)
+
+	if status := r.URL.Query().Get("status"); status != "" {
+		query = query.Where("score_entries.status = ?", status)
+	}
+
+	limit := 50
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if n, err := strconv.Atoi(l); err == nil && n > 0 {
+			limit = n
+		}
+	}
+
+	var rows []scoreRow
+	query.Order("score_entries.submitted_at DESC").Limit(limit).Scan(&rows)
+	if rows == nil {
+		rows = []scoreRow{}
+	}
+
+	utils.RespondSuccess(w, http.StatusOK, "", rows)
+}
 
 // GetScoreSheet handles GET /api/scores/sheet — returns students + existing scores for a class/subject/term
 func (h *ScoresHandler) GetScoreSheet(w http.ResponseWriter, r *http.Request) {

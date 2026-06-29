@@ -142,10 +142,14 @@ async function loadUsers() {
     const data = await api.get(url);
     const users = data.users || data || [];
 
+    // Re-fetch current user role to determine if edit actions should be shown
+    const isOwner = document.querySelector('[data-portal-role]')?.dataset.portalRole === 'OWNER'
+      || (window.PORTAL_ROLE === 'OWNER');
+
     list.innerHTML = users.length
       ? `<div class="card overflow-hidden">
           <table class="data-table w-full">
-            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Division</th><th>Status</th></tr></thead>
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Division</th><th>Status</th>${isOwner ? '<th></th>' : ''}</tr></thead>
             <tbody>
               ${users.map(u => `
                 <tr>
@@ -154,13 +158,111 @@ async function loadUsers() {
                   <td><span class="badge badge-neutral text-xs">${formatRole(u.role)}</span></td>
                   <td class="text-text-secondary text-sm">${u.division_scope || '—'}</td>
                   <td><span class="badge ${u.is_active ? 'badge-success' : 'badge-warning'} text-xs">${u.is_active ? 'Active' : 'Inactive'}</span></td>
+                  ${isOwner ? `<td class="text-right">
+                    <button class="btn btn-sm btn-ghost edit-user-btn" data-id="${u.id}" data-name="${u.full_name}" data-phone="${u.phone || ''}" data-role="${u.role}" data-division="${u.division_scope}" data-active="${u.is_active}">Edit</button>
+                    <button class="btn btn-sm ${u.is_active ? 'btn-danger-ghost' : 'btn-ghost'} toggle-active-btn" data-id="${u.id}" data-active="${u.is_active}">${u.is_active ? 'Deactivate' : 'Activate'}</button>
+                  </td>` : ''}
                 </tr>`).join('')}
             </tbody>
           </table>
         </div>`
       : `<div class="card p-12 text-center text-text-secondary">No staff found.</div>`;
+
+    if (isOwner) {
+      list.querySelectorAll('.edit-user-btn').forEach(btn => {
+        btn.addEventListener('click', () => openEditModal(btn.dataset));
+      });
+      list.querySelectorAll('.toggle-active-btn').forEach(btn => {
+        btn.addEventListener('click', () => toggleActive(btn.dataset.id, btn.dataset.active === 'true'));
+      });
+    }
   } catch (err) {
     list.innerHTML = `<div class="card p-6 text-danger text-sm">${err.message}</div>`;
+  }
+}
+
+function openEditModal(data) {
+  let modal = document.getElementById('edit-user-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'edit-user-modal';
+    modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+      <div style="position:absolute;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);"></div>
+      <div style="position:relative;background:#fff;border-radius:1.25rem;box-shadow:0 25px 60px rgba(0,0,0,0.2);width:100%;max-width:480px;padding:1.5rem;z-index:201;margin:1rem;">
+        <h2 style="font-size:1.125rem;font-weight:700;color:var(--color-primary);margin-bottom:1rem;">Edit Staff Member</h2>
+        <div style="display:grid;gap:0.75rem;">
+          <div><label class="label">Full Name</label><input id="edit-name" class="input w-full" /></div>
+          <div><label class="label">Phone</label><input id="edit-phone" class="input w-full" /></div>
+          <div><label class="label">Role</label>
+            <select id="edit-role" class="input w-full">
+              ${STAFF_ROLES.map(r => `<option value="${r}">${formatRole(r)}</option>`).join('')}
+            </select>
+          </div>
+          <div><label class="label">Division Scope</label>
+            <select id="edit-division" class="input w-full">
+              <option value="ALL">All Divisions</option>
+              <option value="NURSERY">Nursery</option>
+              <option value="PRIMARY">Primary</option>
+              <option value="SECONDARY">Secondary</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:0.75rem;margin-top:1.25rem;">
+          <button id="cancel-edit-btn" class="btn btn-ghost" style="flex:1;">Cancel</button>
+          <button id="confirm-edit-btn" class="btn btn-primary" style="flex:1;">Save Changes</button>
+        </div>
+        <p id="edit-error" style="color:var(--color-danger);font-size:0.75rem;margin-top:0.5rem;display:none;"></p>
+      </div>`;
+    document.body.appendChild(modal);
+
+    modal.querySelector('div').addEventListener('click', (e) => {
+      if (e.target === modal.querySelector('div')) modal.style.display = 'none';
+    });
+    document.getElementById('cancel-edit-btn').addEventListener('click', () => { modal.style.display = 'none'; });
+  }
+
+  // Populate fields
+  document.getElementById('edit-name').value = data.name || '';
+  document.getElementById('edit-phone').value = data.phone || '';
+  document.getElementById('edit-role').value = data.role || '';
+  document.getElementById('edit-division').value = data.division || 'ALL';
+  document.getElementById('edit-error').style.display = 'none';
+  modal.style.display = 'flex';
+
+  // Save handler (replace each open to avoid duplicate listeners)
+  const btn = document.getElementById('confirm-edit-btn');
+  const newBtn = btn.cloneNode(true);
+  btn.parentNode.replaceChild(newBtn, btn);
+  newBtn.addEventListener('click', async () => {
+    const errEl = document.getElementById('edit-error');
+    errEl.style.display = 'none';
+    try {
+      await api.put(`/api/users/${data.id}`, {
+        full_name:      document.getElementById('edit-name').value.trim(),
+        phone:          document.getElementById('edit-phone').value.trim(),
+        role:           document.getElementById('edit-role').value,
+        division_scope: document.getElementById('edit-division').value,
+      });
+      modal.style.display = 'none';
+      showToast('Staff member updated.', 'success');
+      await loadUsers();
+    } catch (err) {
+      errEl.textContent = err.message || 'Failed to update user.';
+      errEl.style.display = 'block';
+    }
+  });
+}
+
+async function toggleActive(userId, currentlyActive) {
+  const action = currentlyActive ? 'deactivate' : 'activate';
+  if (!confirm(`Are you sure you want to ${action} this account?`)) return;
+  try {
+    await api.put(`/api/users/${userId}`, { is_active: !currentlyActive });
+    showToast(`Account ${action}d successfully.`, 'success');
+    await loadUsers();
+  } catch (err) {
+    showToast(err.message || `Failed to ${action} account.`, 'error');
   }
 }
 

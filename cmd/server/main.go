@@ -98,6 +98,7 @@ func main() {
 	announcementsHandler := handlers.NewAnnouncementsHandler(db, cfg)
 	documentsHandler := handlers.NewDocumentsHandler(db, cfg)
 	pagesHandler := handlers.NewPagesHandler(db)
+	auditHandler := handlers.NewAuditHandler(db)
 
 	// ─── Router ───────────────────────────────────────────────────────────────
 	r := chi.NewRouter()
@@ -241,6 +242,7 @@ func main() {
 			})
 
 			// Scores
+			r.With(middleware.RequirePermission(permissions.PermApproveScores)).Get("/scores", scoresHandler.ListScores)
 			r.Get("/scores/structure", scoresHandler.GetScoreStructure)
 			r.Get("/scores/sheet", scoresHandler.GetScoreSheet)
 			r.Group(func(r chi.Router) {
@@ -266,8 +268,13 @@ func main() {
 				r.Use(middleware.RequirePermission(permissions.PermManageResults))
 				r.Post("/results/calculate", resultsHandler.CalculateResults)
 				r.Put("/results/{id}/remarks", resultsHandler.UpdateRemarks)
-				r.With(middleware.Audit(db, "publish_results", "result")).Post("/results/publish", resultsHandler.PublishResults)
 			})
+			// Publish requires the separate PermPublishResults permission
+			// (VicePrincipal and AsstHeadTeacher have PermManageResults but dual-approval
+			// logic for publish is enforced at the service layer via PermPublishResults).
+			r.With(middleware.RequirePermission(permissions.PermPublishResults)).
+				With(middleware.Audit(db, "publish_results", "result")).
+				Post("/results/publish", resultsHandler.PublishResults)
 
 			// Quizzes
 			r.Get("/quizzes", quizzesHandler.ListQuizzes)
@@ -337,6 +344,62 @@ func main() {
 			r.Post("/upload/sign", documentsHandler.SignUpload)
 			r.Get("/documents/student", documentsHandler.GetDocumentsByStudent)
 			r.Post("/admissions/applications/letter", documentsHandler.UploadAdmissionLetter)
+
+			// ─── Audit Logs (Owner only) ───────────────────────────────────────
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequirePermission(permissions.PermViewAuditLogs))
+				r.Get("/audit/logs", auditHandler.ListAuditLogs)
+				r.Get("/audit/logs/export", auditHandler.ExportAuditLogs)
+			})
+
+			// ─── Owner User Actions ────────────────────────────────────────────
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequireRole(models.RoleOwner))
+				r.With(middleware.Audit(db, "reset_password", "user")).Post("/users/{id}/reset-password", usersHandler.ResetUserPassword)
+				r.With(middleware.Audit(db, "suspend_user", "user")).Post("/users/{id}/suspend", usersHandler.SuspendUser)
+				r.With(middleware.Audit(db, "unlock_user", "user")).Post("/users/{id}/unlock", usersHandler.UnlockUser)
+			})
+
+			// ─── Term management (Owner can open/close/edit terms) ─────────────
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequirePermission(permissions.PermManageTerms))
+				r.Put("/sessions/{sessionId}/terms/{id}", academicHandler.UpdateTerm)
+				r.Put("/sessions/{sessionId}/terms/{id}/status", academicHandler.OpenCloseTerm)
+			})
+
+			// ─── Session close + calendar publish (Owner) ──────────────────────
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequirePermission(permissions.PermManageSessions))
+				r.Put("/sessions/{id}/close", academicHandler.CloseSession)
+				r.Post("/sessions/{id}/calendar/publish", academicHandler.PublishAcademicCalendar)
+			})
+
+			// ─── Quiz publish/close/leaderboard/cheating ───────────────────────
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequirePermission(permissions.PermManageQuizzes))
+				r.With(middleware.Audit(db, "publish_quiz", "quiz")).Put("/quizzes/{id}/publish", quizzesHandler.PublishQuiz)
+				r.With(middleware.Audit(db, "close_quiz", "quiz")).Put("/quizzes/{id}/close", quizzesHandler.CloseQuiz)
+				r.Get("/quizzes/{id}/leaderboard", quizzesHandler.GetQuizLeaderboard)
+				r.Get("/quizzes/{id}/cheating", quizzesHandler.GetCheatingReports)
+			})
+
+			// ─── Finance reports ───────────────────────────────────────────────
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequireAnyPermission(permissions.PermManageFinances, permissions.PermViewReports))
+				r.Get("/finance/summary", financeHandler.GetFinanceSummary)
+				r.Get("/finance/reports/income", financeHandler.GetIncomeReport)
+				r.Get("/finance/reports/debts", financeHandler.GetDebtReport)
+			})
+
+			// ─── Owner result override ─────────────────────────────────────────
+			r.With(middleware.RequirePermission(permissions.PermOverrideResults)).
+				With(middleware.Audit(db, "override_result", "result")).
+				Put("/results/{id}/override", resultsHandler.OverrideResult)
+
+			// ─── Owner admission override ──────────────────────────────────────
+			r.With(middleware.RequireRole(models.RoleOwner)).
+				With(middleware.Audit(db, "override_admission", "application")).
+				Put("/admissions/applications/{id}/override", admissionsHandler.OverrideAdmission)
 
 			// Dashboard stats
 			dashboardHandler := handlers.NewDashboardHandler(db)

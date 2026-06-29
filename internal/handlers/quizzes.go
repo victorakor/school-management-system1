@@ -560,3 +560,195 @@ func equalFold(a, b string) bool {
 	}
 	return true
 }
+
+// ─── Owner/Admin Quiz Management ───────────────────────────────────────────────
+
+// PublishQuiz handles PUT /api/quizzes/:id/publish
+// Changes a DRAFT quiz to ACTIVE, making it visible and startable.
+func (h *QuizzesHandler) PublishQuiz(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r)
+	quizID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		utils.RespondError(w, http.StatusBadRequest, "Invalid quiz ID")
+		return
+	}
+
+	var quiz models.Quiz
+	if err := h.db.Where("id = ? AND school_id = ? AND is_archived = false", quizID, claims.SchoolID).
+		First(&quiz).Error; err != nil {
+		utils.RespondError(w, http.StatusNotFound, "Quiz not found")
+		return
+	}
+
+	if quiz.Status != models.QuizStatusDraft && quiz.Status != models.QuizStatusPostponed {
+		utils.RespondError(w, http.StatusBadRequest, "Only DRAFT or POSTPONED quizzes can be published")
+		return
+	}
+
+	// Verify there are approved questions
+	var approvedCount int64
+	h.db.Model(&models.QuizQuestionAssignment{}).
+		Where("quiz_id = ? AND is_approved = true", quizID).
+		Count(&approvedCount)
+	if approvedCount == 0 {
+		utils.RespondError(w, http.StatusBadRequest, "Quiz must have at least one approved question before publishing")
+		return
+	}
+
+	if err := h.db.Model(&models.Quiz{}).Where("id = ?", quizID).
+		Update("status", models.QuizStatusActive).Error; err != nil {
+		utils.RespondError(w, http.StatusInternalServerError, "Failed to publish quiz")
+		return
+	}
+
+	middleware.Record(h.db, r, middleware.AuditAction{
+		Action:     "publish_quiz",
+		EntityType: "quiz",
+		EntityID:   quizID.String(),
+		Metadata:   map[string]interface{}{"quiz_title": quiz.Title},
+	})
+
+	utils.RespondSuccess(w, http.StatusOK, "Quiz published and now active", nil)
+}
+
+// CloseQuiz handles PUT /api/quizzes/:id/close
+// Ends an active quiz and prevents new attempts.
+func (h *QuizzesHandler) CloseQuiz(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r)
+	quizID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		utils.RespondError(w, http.StatusBadRequest, "Invalid quiz ID")
+		return
+	}
+
+	var quiz models.Quiz
+	if err := h.db.Where("id = ? AND school_id = ? AND is_archived = false", quizID, claims.SchoolID).
+		First(&quiz).Error; err != nil {
+		utils.RespondError(w, http.StatusNotFound, "Quiz not found")
+		return
+	}
+
+	if quiz.Status != models.QuizStatusActive {
+		utils.RespondError(w, http.StatusBadRequest, "Only ACTIVE quizzes can be closed")
+		return
+	}
+
+	if err := h.db.Model(&models.Quiz{}).Where("id = ?", quizID).
+		Update("status", models.QuizStatusClosed).Error; err != nil {
+		utils.RespondError(w, http.StatusInternalServerError, "Failed to close quiz")
+		return
+	}
+
+	middleware.Record(h.db, r, middleware.AuditAction{
+		Action:     "close_quiz",
+		EntityType: "quiz",
+		EntityID:   quizID.String(),
+		Metadata:   map[string]interface{}{"quiz_title": quiz.Title},
+	})
+
+	utils.RespondSuccess(w, http.StatusOK, "Quiz closed successfully", nil)
+}
+
+// GetQuizLeaderboard handles GET /api/quizzes/:id/leaderboard
+// Returns top scores for a quiz (available once closed or active for owner view).
+func (h *QuizzesHandler) GetQuizLeaderboard(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r)
+	quizID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		utils.RespondError(w, http.StatusBadRequest, "Invalid quiz ID")
+		return
+	}
+
+	var quiz models.Quiz
+	if err := h.db.Where("id = ? AND school_id = ? AND is_archived = false", quizID, claims.SchoolID).
+		First(&quiz).Error; err != nil {
+		utils.RespondError(w, http.StatusNotFound, "Quiz not found")
+		return
+	}
+
+	type leaderboardEntry struct {
+		Rank        int       `json:"rank"`
+		StudentID   string    `json:"student_id"`
+		StudentName string    `json:"student_name"`
+		Score       int       `json:"score"`
+		SubmittedAt time.Time `json:"submitted_at"`
+		IsFlagged   bool      `json:"is_flagged"`
+	}
+
+	var entries []leaderboardEntry
+	h.db.Raw(`
+		SELECT
+			ROW_NUMBER() OVER (ORDER BY qa.score DESC, qa.submitted_at ASC) AS rank,
+			s.id AS student_id,
+			s.full_name AS student_name,
+			qa.score,
+			qa.submitted_at,
+			qa.is_flagged
+		FROM quiz_attempts qa
+		JOIN students s ON s.id = qa.student_id
+		WHERE qa.quiz_id = ? AND qa.submitted_at IS NOT NULL
+		ORDER BY qa.score DESC, qa.submitted_at ASC
+		LIMIT 100`, quizID).Scan(&entries)
+
+	if entries == nil {
+		entries = []leaderboardEntry{}
+	}
+
+	utils.RespondSuccess(w, http.StatusOK, "", map[string]interface{}{
+		"quiz":        quiz,
+		"leaderboard": entries,
+	})
+}
+
+// GetCheatingReports handles GET /api/quizzes/:id/cheating
+// Returns all flagged attempts for a quiz with violation details.
+func (h *QuizzesHandler) GetCheatingReports(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r)
+	quizID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		utils.RespondError(w, http.StatusBadRequest, "Invalid quiz ID")
+		return
+	}
+
+	var quiz models.Quiz
+	if err := h.db.Where("id = ? AND school_id = ? AND is_archived = false", quizID, claims.SchoolID).
+		First(&quiz).Error; err != nil {
+		utils.RespondError(w, http.StatusNotFound, "Quiz not found")
+		return
+	}
+
+	var attempts []models.QuizAttempt
+	h.db.Preload("Student").
+		Where("quiz_id = ? AND is_flagged = true", quizID).
+		Order("created_at DESC").
+		Find(&attempts)
+
+	type reportEntry struct {
+		AttemptID     string                    `json:"attempt_id"`
+		StudentID     string                    `json:"student_id"`
+		StudentName   string                    `json:"student_name"`
+		Score         int                       `json:"score"`
+		Violations    models.QuizViolationSlice `json:"violations"`
+		AutoSubmitted bool                      `json:"auto_submitted"`
+		SubmittedAt   *time.Time                `json:"submitted_at"`
+	}
+
+	reports := make([]reportEntry, 0, len(attempts))
+	for _, a := range attempts {
+		reports = append(reports, reportEntry{
+			AttemptID:     a.ID.String(),
+			StudentID:     a.StudentID.String(),
+			StudentName:   a.Student.FullName,
+			Score:         a.Score,
+			Violations:    a.Violations,
+			AutoSubmitted: a.AutoSubmitted,
+			SubmittedAt:   a.SubmittedAt,
+		})
+	}
+
+	utils.RespondSuccess(w, http.StatusOK, "", map[string]interface{}{
+		"quiz":    quiz,
+		"reports": reports,
+		"total":   len(reports),
+	})
+}

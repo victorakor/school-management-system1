@@ -79,6 +79,47 @@ async function initOwnerSettings(container) {
             <input id="s-logo-url" class="input w-full text-sm font-mono" placeholder="https://res.cloudinary.com/…" />
             <p class="text-xs text-text-secondary mt-1">Paste a Cloudinary URL after uploading.</p>
           </div>
+          <div>
+            <label class="label">School Stamp / Seal</label>
+            <p class="text-xs text-text-secondary mb-2">Used on official PDF documents.</p>
+            <div id="stamp-preview" class="w-20 h-20 rounded-xl border-2 border-dashed border-neutral-200 flex items-center justify-center mb-2">
+              <svg class="w-8 h-8 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4m0 4h.01"/></svg>
+            </div>
+            <input id="s-stamp-url" class="input w-full text-sm font-mono" placeholder="https://res.cloudinary.com/…" />
+            <p class="text-xs text-text-secondary mt-1">Paste a Cloudinary URL after uploading.</p>
+          </div>
+          <div>
+            <label class="label">Principal's Signature</label>
+            <p class="text-xs text-text-secondary mb-2">Appears on secondary school result cards.</p>
+            <input id="s-sig-principal" class="input w-full text-sm font-mono" placeholder="https://res.cloudinary.com/…" />
+          </div>
+          <div>
+            <label class="label">Head Teacher's Signature</label>
+            <p class="text-xs text-text-secondary mb-2">Appears on nursery/primary result cards.</p>
+            <input id="s-sig-headteacher" class="input w-full text-sm font-mono" placeholder="https://res.cloudinary.com/…" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card p-6">
+        <h2 class="font-semibold text-primary mb-4">Document & Finance Settings</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div><label class="label">Bursar Name (for receipts)</label><input id="s-bursar-name" class="input w-full" placeholder="e.g. Mrs. Adaeze Obi" /></div>
+          <div><label class="label">Max Video Upload (MB)</label><input id="s-max-video" type="number" class="input w-full" min="10" max="500" placeholder="50" /></div>
+          <div class="md:col-span-2"><label class="label">Admission Documents Required (one per line)</label>
+            <textarea id="s-admission-docs" class="input w-full" rows="3" placeholder="Birth certificate&#10;Passport photograph&#10;Previous school report"></textarea>
+            <p class="text-xs text-text-secondary mt-1">Each line becomes a checklist item in the admissions form.</p>
+          </div>
+          <div class="md:col-span-2"><label class="label">School Directions / How to Find Us</label>
+            <textarea id="s-directions" class="input w-full" rows="3" placeholder="Turn left at the junction…"></textarea>
+          </div>
+          <div class="md:col-span-2 flex items-center gap-3 p-3 rounded-xl bg-neutral-50">
+            <input id="s-watermark" type="checkbox" class="w-4 h-4 rounded accent-primary" />
+            <div>
+              <label for="s-watermark" class="text-sm font-medium text-primary cursor-pointer">Enable watermark on result cards</label>
+              <p class="text-xs text-text-secondary">Adds a faint school logo watermark to PDF result cards.</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -119,6 +160,15 @@ async function loadOwnerSettings() {
     setValue('s-email', s.email);
     setValue('s-prefix', s.prefix);
     setValue('s-logo-url', s.logo_url);
+    setValue('s-stamp-url', s.stamp_url);
+    setValue('s-sig-principal', s.signature_principal_url);
+    setValue('s-sig-headteacher', s.signature_headteacher_url);
+    setValue('s-bursar-name', s.bursar_name);
+    setValue('s-admission-docs', s.admission_documents_list);
+    setValue('s-directions', s.school_directions);
+    if (s.max_video_upload_mb) setValue('s-max-video', s.max_video_upload_mb);
+    const watermarkEl = document.getElementById('s-watermark');
+    if (watermarkEl) watermarkEl.checked = !!s.watermark_enabled;
     if (s.established_year) setValue('s-established-year', s.established_year);
     if (s.primary_color) {
       document.getElementById('s-color').value = s.primary_color;
@@ -127,6 +177,10 @@ async function loadOwnerSettings() {
     if (s.logo_url) {
       const preview = document.getElementById('logo-preview');
       if (preview) preview.innerHTML = `<img src="${s.logo_url}" class="w-full h-full object-contain rounded-xl p-1" alt="Logo" />`;
+    }
+    if (s.stamp_url) {
+      const preview = document.getElementById('stamp-preview');
+      if (preview) preview.innerHTML = `<img src="${s.stamp_url}" class="w-full h-full object-contain rounded-xl p-1" alt="Stamp" />`;
     }
   } catch (err) {
     if (loadingEl) loadingEl.innerHTML = `<p class="text-danger text-sm">Failed to load settings: ${err.message}</p>`;
@@ -138,16 +192,25 @@ async function saveOwnerSettings(e) {
   const errEl = document.getElementById('settings-error');
   errEl.classList.add('hidden');
   const establishedYear = parseInt(document.getElementById('s-established-year').value.trim()) || 0;
+  const maxVideo = parseInt(document.getElementById('s-max-video')?.value.trim()) || 0;
   const body = {
-    name:          document.getElementById('s-name').value.trim(),
-    motto:         document.getElementById('s-motto').value.trim(),
-    address:       document.getElementById('s-address').value.trim(),
-    phone:         document.getElementById('s-phone').value.trim(),
-    email:         document.getElementById('s-email').value.trim(),
-    prefix:        document.getElementById('s-prefix').value.trim().toUpperCase(),
-    primary_color: document.getElementById('s-color-hex').value.trim(),
-    logo_url:      document.getElementById('s-logo-url').value.trim(),
+    name:                     document.getElementById('s-name').value.trim(),
+    motto:                    document.getElementById('s-motto').value.trim(),
+    address:                  document.getElementById('s-address').value.trim(),
+    phone:                    document.getElementById('s-phone').value.trim(),
+    email:                    document.getElementById('s-email').value.trim(),
+    prefix:                   document.getElementById('s-prefix').value.trim().toUpperCase(),
+    primary_color:            document.getElementById('s-color-hex').value.trim(),
+    logo_url:                 document.getElementById('s-logo-url').value.trim(),
+    stamp_url:                document.getElementById('s-stamp-url')?.value.trim() || '',
+    signature_principal_url:  document.getElementById('s-sig-principal')?.value.trim() || '',
+    signature_headteacher_url: document.getElementById('s-sig-headteacher')?.value.trim() || '',
+    bursar_name:              document.getElementById('s-bursar-name')?.value.trim() || '',
+    admission_documents_list: document.getElementById('s-admission-docs')?.value.trim() || '',
+    school_directions:        document.getElementById('s-directions')?.value.trim() || '',
+    watermark_enabled:        document.getElementById('s-watermark')?.checked ?? false,
     ...(establishedYear > 1900 && { established_year: establishedYear }),
+    ...(maxVideo > 0 && { max_video_upload_mb: maxVideo }),
   };
   try {
     await api.put('/api/settings/school', body);

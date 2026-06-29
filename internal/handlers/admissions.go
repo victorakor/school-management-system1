@@ -338,3 +338,70 @@ func (h *AdmissionsHandler) GetParentApplications(w http.ResponseWriter, r *http
 
 	utils.RespondSuccess(w, http.StatusOK, "", apps)
 }
+
+// ─── Owner Admission Override ──────────────────────────────────────────────────
+
+// OverrideAdmission handles PUT /api/admissions/applications/:id/override (Owner only)
+// Forces an admission decision regardless of the normal approval workflow.
+func (h *AdmissionsHandler) OverrideAdmission(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r)
+	appID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		utils.RespondError(w, http.StatusBadRequest, "Invalid application ID")
+		return
+	}
+
+	var req struct {
+		Status        string `json:"status"` // ACCEPTED or DECLINED
+		DeclineReason string `json:"decline_reason"`
+		Reason        string `json:"reason"` // override justification for audit
+	}
+	if err := utils.ReadJSON(r, &req); err != nil {
+		utils.RespondError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	v := validators.New()
+	v.Required("status", req.Status, "Status")
+	v.Enum("status", req.Status, []string{"ACCEPTED", "DECLINED"}, "Status")
+	v.Required("reason", req.Reason, "Override reason")
+	if req.Status == "DECLINED" {
+		v.Required("decline_reason", req.DeclineReason, "Decline reason")
+	}
+	if v.HasErrors() {
+		utils.RespondJSON(w, http.StatusUnprocessableEntity, map[string]interface{}{"errors": v.Errors()})
+		return
+	}
+
+	var app models.Application
+	if err := h.db.Where("id = ? AND school_id = ? AND is_archived = false", appID, claims.SchoolID).
+		First(&app).Error; err != nil {
+		utils.RespondError(w, http.StatusNotFound, "Application not found")
+		return
+	}
+
+	updates := map[string]interface{}{
+		"status": models.ApplicationStatus(req.Status),
+	}
+	if req.DeclineReason != "" {
+		updates["decline_reason"] = req.DeclineReason
+	}
+
+	if err := h.db.Model(&models.Application{}).Where("id = ?", appID).Updates(updates).Error; err != nil {
+		utils.RespondError(w, http.StatusInternalServerError, "Failed to override admission decision")
+		return
+	}
+
+	middleware.Record(h.db, r, middleware.AuditAction{
+		Action:     "override_admission",
+		EntityType: "application",
+		EntityID:   appID.String(),
+		Metadata: map[string]interface{}{
+			"new_status":     req.Status,
+			"override_reason": req.Reason,
+			"ref_number":     app.RefNumber,
+		},
+	})
+
+	utils.RespondSuccess(w, http.StatusOK, "Admission decision overridden", nil)
+}

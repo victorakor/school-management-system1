@@ -572,3 +572,143 @@ func isCreatableStaffRole(role models.Role) bool {
 	}
 	return false
 }
+
+// ─── Owner-Only User Actions ───────────────────────────────────────────────────
+
+// ResetUserPassword handles POST /api/users/:id/reset-password (Owner only)
+// Allows the owner to set a new password for any staff account.
+func (h *UsersHandler) ResetUserPassword(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r)
+	userID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		utils.RespondError(w, http.StatusBadRequest, "Invalid user ID")
+		return
+	}
+
+	// Prevent owner from resetting their own password via admin endpoint
+	if userID == claims.UserID {
+		utils.RespondError(w, http.StatusBadRequest, "Use the profile settings to change your own password")
+		return
+	}
+
+	var req struct {
+		NewPassword string `json:"new_password"`
+	}
+	if err := utils.ReadJSON(r, &req); err != nil {
+		utils.RespondError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	v := validators.New()
+	v.Required("new_password", req.NewPassword, "New password")
+	v.Password("new_password", req.NewPassword)
+	if v.HasErrors() {
+		utils.RespondJSON(w, http.StatusUnprocessableEntity, map[string]interface{}{"errors": v.Errors()})
+		return
+	}
+
+	// Ensure target user belongs to the same school
+	var target models.User
+	if err := h.db.Where("id = ? AND school_id = ? AND is_archived = false", userID, claims.SchoolID).First(&target).Error; err != nil {
+		utils.RespondError(w, http.StatusNotFound, "User not found")
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), 12)
+	if err != nil {
+		utils.RespondError(w, http.StatusInternalServerError, "Failed to reset password")
+		return
+	}
+
+	if err := h.db.Model(&models.User{}).Where("id = ?", userID).
+		Update("password_hash", string(hash)).Error; err != nil {
+		utils.RespondError(w, http.StatusInternalServerError, "Failed to reset password")
+		return
+	}
+
+	middleware.Record(h.db, r, middleware.AuditAction{
+		Action:     "reset_password",
+		EntityType: "user",
+		EntityID:   userID.String(),
+		Metadata:   map[string]interface{}{"target_email": target.Email},
+	})
+
+	utils.RespondSuccess(w, http.StatusOK, "Password reset successfully", nil)
+}
+
+// SuspendUser handles POST /api/users/:id/suspend (Owner only)
+// Immediately deactivates the account without archiving it.
+func (h *UsersHandler) SuspendUser(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r)
+	userID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		utils.RespondError(w, http.StatusBadRequest, "Invalid user ID")
+		return
+	}
+
+	if userID == claims.UserID {
+		utils.RespondError(w, http.StatusBadRequest, "You cannot suspend your own account")
+		return
+	}
+
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	_ = utils.ReadJSON(r, &req) // reason is optional
+
+	var target models.User
+	if err := h.db.Where("id = ? AND school_id = ? AND is_archived = false", userID, claims.SchoolID).First(&target).Error; err != nil {
+		utils.RespondError(w, http.StatusNotFound, "User not found")
+		return
+	}
+
+	if err := h.db.Model(&models.User{}).Where("id = ?", userID).
+		Update("is_active", false).Error; err != nil {
+		utils.RespondError(w, http.StatusInternalServerError, "Failed to suspend user")
+		return
+	}
+
+	middleware.Record(h.db, r, middleware.AuditAction{
+		Action:     "suspend_user",
+		EntityType: "user",
+		EntityID:   userID.String(),
+		Metadata: map[string]interface{}{
+			"target_email": target.Email,
+			"reason":       req.Reason,
+		},
+	})
+
+	utils.RespondSuccess(w, http.StatusOK, "User suspended successfully", nil)
+}
+
+// UnlockUser handles POST /api/users/:id/unlock (Owner only)
+// Re-activates a previously deactivated or locked account.
+func (h *UsersHandler) UnlockUser(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.GetClaims(r)
+	userID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		utils.RespondError(w, http.StatusBadRequest, "Invalid user ID")
+		return
+	}
+
+	var target models.User
+	if err := h.db.Where("id = ? AND school_id = ? AND is_archived = false", userID, claims.SchoolID).First(&target).Error; err != nil {
+		utils.RespondError(w, http.StatusNotFound, "User not found")
+		return
+	}
+
+	if err := h.db.Model(&models.User{}).Where("id = ?", userID).
+		Update("is_active", true).Error; err != nil {
+		utils.RespondError(w, http.StatusInternalServerError, "Failed to unlock user")
+		return
+	}
+
+	middleware.Record(h.db, r, middleware.AuditAction{
+		Action:     "unlock_user",
+		EntityType: "user",
+		EntityID:   userID.String(),
+		Metadata:   map[string]interface{}{"target_email": target.Email},
+	})
+
+	utils.RespondSuccess(w, http.StatusOK, "User unlocked and reactivated", nil)
+}
