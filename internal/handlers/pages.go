@@ -214,12 +214,47 @@ func (h *PagesHandler) ServePage(tmplPath, title, metaDesc string) http.HandlerF
 	}
 }
 
-// ServePortal renders portal.html with school data + CSRF token.
+// portalTemplateForRole maps a role to the correct role-specific portal template.
+// Each template bakes in only the nav sections that role is permitted to see.
+func portalTemplateForRole(role models.Role) (string, string) {
+	switch role {
+	case models.RoleOwner:
+		return "web/templates/portal/portal-owner.html", "Owner Dashboard"
+	case models.RolePrincipal, models.RoleVicePrincipal,
+		models.RoleHeadTeacher, models.RoleAsstHeadTeacher:
+		return "web/templates/portal/portal-admin.html", "Admin Portal"
+	case models.RoleTeacher, models.RoleClassTeacher, models.RoleExamOfficer:
+		return "web/templates/portal/portal-teacher.html", "Teacher Portal"
+	case models.RoleAdmissionsOfficer, models.RoleBursar,
+		models.RoleBlogManager, models.RoleICTAdmin:
+		return "web/templates/portal/portal-staff.html", "Staff Portal"
+	case models.RoleStudent, models.RolePupil:
+		return "web/templates/portal/portal-student.html", "Student Portal"
+	case models.RoleParent:
+		return "web/templates/portal/portal-parent.html", "Parent Portal"
+	default:
+		// Fallback: most restricted template so unknown roles never see admin sections.
+		return "web/templates/portal/portal-student.html", "Portal"
+	}
+}
+
+// ServePortal reads the user's role from JWT claims and serves the matching
+// role-specific portal template. Each template embeds only the nav sections
+// that role is permitted to access, enforcing RBAC at the HTML delivery layer.
 func (h *PagesHandler) ServePortal(w http.ResponseWriter, r *http.Request) {
 	data := h.buildPageData(r)
+
+	tmplPath := "web/templates/portal/portal-student.html"
 	data.Title = "Portal"
 
-	tmpl, err := template.ParseFiles("web/templates/portal.html")
+	claims := middleware.GetClaims(r)
+	if claims != nil {
+		path, title := portalTemplateForRole(claims.Role)
+		tmplPath = path
+		data.Title = title
+	}
+
+	tmpl, err := template.ParseFiles(tmplPath)
 	if err != nil {
 		http.Error(w, "portal template error: "+err.Error(), http.StatusInternalServerError)
 		return

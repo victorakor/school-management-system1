@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{.Title}} — {{.SchoolName}}</title>
+  <meta name="csrf-token" content="{{.CSRFToken}}" />
+  <link rel="preload" href="/static/fonts/PlusJakartaSans-Bold.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/static/fonts/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/static/css/app.css" />
+  {{if .SchoolLogoURL}}<link rel="icon" type="image/png" href="{{.SchoolLogoURL}}" />{{end}}
+  <style>
+    .portal-layout { display: flex; min-height: 100vh; }
+    #portal-sidebar {
+      width: 260px; flex-shrink: 0; background: var(--color-primary);
+      display: flex; flex-direction: column;
+      position: fixed; top: 0; left: 0; bottom: 0; z-index: 30;
+      transition: width 200ms ease; overflow: hidden;
+    }
+    #portal-sidebar.sidebar-collapsed { width: 48px; }
+    #portal-sidebar.sidebar-collapsed .sidebar-label { display: none; }
+    #portal-sidebar.sidebar-collapsed .sidebar-user-info { display: none; }
+    .portal-main {
+      flex: 1; margin-left: 260px;
+      display: flex; flex-direction: column; min-height: 100vh;
+      transition: margin-left 200ms ease;
+    }
+    .portal-main.sidebar-collapsed { margin-left: 48px; }
+    #portal-header {
+      position: sticky; top: 0; z-index: 20;
+      background: white; border-bottom: 1px solid #E2E8F0;
+      height: 64px; display: flex; align-items: center;
+      padding: 0 24px; gap: 16px;
+    }
+    #portal-content { flex: 1; padding: 24px; max-width: 1280px; width: 100%; }
+    @media (max-width: 1023px) {
+      #portal-sidebar { display: none; }
+      .portal-main { margin-left: 0; }
+      #portal-mobile-nav {
+        display: flex; position: fixed; bottom: 0; left: 0; right: 0;
+        background: var(--color-primary); z-index: 30;
+        border-top: 1px solid rgba(255,255,255,0.1);
+        justify-content: space-around; padding: 4px 0;
+      }
+    }
+    @media (min-width: 1024px) { #portal-mobile-nav { display: none; } }
+    #notification-panel {
+      position: absolute; top: calc(100% + 8px); right: 0; width: 380px; max-height: 480px;
+      background: white; border: 1px solid #E2E8F0; border-radius: 16px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.15); overflow: hidden;
+      flex-direction: column; z-index: 100;
+    }
+    #notification-panel:not(.hidden) { display: flex; }
+  </style>
+</head>
+<body class="bg-background text-text-primary font-body antialiased overflow-x-hidden">
+  <a href="#portal-content" class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:bg-accent focus:text-white focus:px-4 focus:py-2 focus:rounded-lg">Skip to main content</a>
+  <div class="portal-layout">
+    <aside id="portal-sidebar" role="navigation" aria-label="Portal navigation">
+      <div class="p-4 border-b border-white/10 sidebar-user-info">
+        <div class="flex items-center gap-3">
+          <div id="sidebar-user-avatar" class="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold text-sm flex-shrink-0" aria-hidden="true">
+            <img src="" alt="" class="w-full h-full rounded-full object-cover hidden" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <p id="sidebar-user-name" class="text-white font-semibold text-sm truncate">Loading...</p>
+            <p id="sidebar-user-role" class="text-white/50 text-xs truncate">—</p>
+          </div>
+        </div>
+      </div>
+      <nav class="flex-1 overflow-y-auto py-4 px-3" aria-label="Main portal navigation">
+        <ul id="sidebar-nav" class="space-y-1" role="list">
+          <li class="skeleton h-10 rounded-xl mb-1"></li>
+          <li class="skeleton h-10 rounded-xl mb-1"></li>
+          <li class="skeleton h-10 rounded-xl mb-1"></li>
+        </ul>
+      </nav>
+      <div class="p-4 border-t border-white/10 flex items-center justify-between">
+        {{if .SchoolLogoURL}}
+        <img src="{{.SchoolLogoURL}}" alt="{{.SchoolName}}" class="h-8 w-8 object-contain rounded-lg opacity-60 sidebar-label" />
+        {{end}}
+        <button id="sidebar-toggle" class="p-2 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center ml-auto" aria-label="Toggle sidebar" aria-expanded="true">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/></svg>
+        </button>
+      </div>
+    </aside>
+    <div class="portal-main" id="portal-main">
+      <header id="portal-header" role="banner">
+        <h1 id="portal-page-title" class="font-display font-bold text-lg text-primary flex-1 truncate">Dashboard</h1>
+        <div class="flex items-center gap-3 ml-auto">
+          <div class="relative">
+            <button id="notification-bell" class="relative p-2 rounded-xl text-text-secondary hover:text-primary hover:bg-background transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center" aria-label="Notifications" aria-haspopup="true" aria-expanded="false">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+              <span id="notification-badge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-danger text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 animate-pulse-badge" aria-label="unread notifications"></span>
+            </button>
+            <div id="notification-panel" class="hidden" role="dialog" aria-label="Notifications" aria-modal="false">
+              <div class="flex items-center justify-between px-4 py-3 border-b border-neutral-100">
+                <h2 class="font-display font-semibold text-sm text-primary">Notifications</h2>
+                <div class="flex items-center gap-2">
+                  <button id="mark-all-read" class="text-xs text-accent hover:underline min-h-[44px] px-2">Mark all read</button>
+                  <button id="close-notifications" class="p-1.5 rounded-lg text-text-secondary hover:text-primary hover:bg-background transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center" aria-label="Close notifications">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                  </button>
+                </div>
+              </div>
+              <div id="notification-list" class="overflow-y-auto flex-1" style="max-height: 380px;" role="list"></div>
+            </div>
+          </div>
+          <div class="relative">
+            <button id="user-menu-btn" class="flex items-center gap-2 p-2 rounded-xl hover:bg-background transition-colors min-h-[44px]" aria-haspopup="true" aria-expanded="false" aria-label="User menu">
+              <div class="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-xs" id="header-avatar" aria-hidden="true">U</div>
+              <svg class="w-4 h-4 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <div id="user-menu" class="hidden absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl border border-neutral-100 shadow-modal py-2 z-50" role="menu">
+              <a href="/portal/settings" class="flex items-center gap-3 px-4 py-2.5 text-sm text-text-secondary hover:text-primary hover:bg-background transition-colors min-h-[44px]" role="menuitem">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                Settings
+              </a>
+              <hr class="my-1 border-neutral-100" />
+              <button id="logout-btn" class="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-danger hover:bg-danger/5 transition-colors min-h-[44px]" role="menuitem">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main id="portal-content" class="flex-1 p-6" role="main">
+        <div class="flex items-center justify-center h-64">
+          <svg class="w-8 h-8 animate-spin text-accent" fill="none" viewBox="0 0 24 24" aria-label="Loading"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+        </div>
+      </main>
+    </div>
+    <nav id="portal-mobile-nav" aria-label="Mobile navigation" role="navigation"></nav>
+  </div>
+  <script>
+    document.getElementById('user-menu-btn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('user-menu')?.classList.toggle('hidden');
+    });
+    document.addEventListener('click', () => {
+      document.getElementById('user-menu')?.classList.add('hidden');
+    });
+    document.getElementById('logout-btn')?.addEventListener('click', async () => {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      window.location.href = '/login';
+    });
+  </script>
+  <!-- Role-group config: read by portal.js to restrict navigation & capabilities -->
+  <script>
+    window.PORTAL_ROLE_GROUP = "PARENT";
+    window.PORTAL_NAV_ITEMS = [
+  {
+    "id": "dashboard",
+    "label": "Dashboard",
+    "icon": "home"
+  },
+  {
+    "id": "admissions",
+    "label": "Admissions",
+    "icon": "file-text"
+  },
+  {
+    "id": "results",
+    "label": "Results",
+    "icon": "bar-chart-2"
+  },
+  {
+    "id": "quizzes",
+    "label": "Quizzes",
+    "icon": "help-circle"
+  },
+  {
+    "id": "timetable",
+    "label": "Timetable",
+    "icon": "calendar"
+  },
+  {
+    "id": "finance",
+    "label": "Finance",
+    "icon": "dollar-sign"
+  },
+  {
+    "id": "feed",
+    "label": "Activities",
+    "icon": "image"
+  }
+];
+  </script>
+  <script type="module" src="/static/js/portal.js"></script>
+</body>
+</html>

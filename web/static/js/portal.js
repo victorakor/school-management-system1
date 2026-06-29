@@ -19,6 +19,14 @@ const state = {
 async function init() {
   try {
     state.user = await api.get('/api/users/me');
+    // Ensure PORTAL_ROLE is always set for modules like settings.js that read it.
+    window.PORTAL_ROLE = state.user.role;
+    // For the staff template: the cookie-based role parse may have returned ''
+    // if the access token is httpOnly. Now that the API confirmed the role,
+    // let the template update PORTAL_NAV_ITEMS to the correct staff subset.
+    if (typeof window.__staffNavReady === 'function') {
+      window.__staffNavReady(state.user.role);
+    }
     renderSidebar();
     initNotifications();
     handleRouting();
@@ -32,20 +40,20 @@ async function init() {
 
 // ─── Sidebar Rendering ────────────────────────────────────────────────────────
 
-const NAV_ITEMS = [
-  { id: 'dashboard',   label: 'Dashboard',    icon: 'home',         roles: ['ALL'] },
-  { id: 'admissions',  label: 'Admissions',   icon: 'file-text',    roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','ADMISSIONS_OFFICER','PARENT'] },
-  { id: 'students',    label: 'Students',     icon: 'users',        roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','EXAM_OFFICER','TEACHER','CLASS_TEACHER'] },
-  { id: 'attendance',  label: 'Attendance',   icon: 'check-square', roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','TEACHER','CLASS_TEACHER'] },
-  { id: 'scores',      label: 'Scores',       icon: 'edit-3',       roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','EXAM_OFFICER','TEACHER','CLASS_TEACHER'] },
-  { id: 'results',     label: 'Results',      icon: 'bar-chart-2',  roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','EXAM_OFFICER','STUDENT','PUPIL','PARENT'] },
-  { id: 'quizzes',     label: 'Quizzes',      icon: 'help-circle',  roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','EXAM_OFFICER','TEACHER','CLASS_TEACHER','STUDENT','PUPIL','PARENT'] },
-  { id: 'timetable',   label: 'Timetable',    icon: 'calendar',     roles: ['ALL'] },
-  { id: 'finance',     label: 'Finance',      icon: 'dollar-sign',  roles: ['OWNER','BURSAR','PARENT'] },
-  { id: 'feed',        label: 'Activities',   icon: 'image',        roles: ['ALL'] },
-  { id: 'users',       label: 'Staff',        icon: 'user-check',   roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','ICT_ADMIN'] },
-  { id: 'settings',    label: 'Settings',     icon: 'settings',     roles: ['OWNER','ICT_ADMIN'] },
+// NAV_ITEMS is injected by the server into window.PORTAL_NAV_ITEMS based on the
+// authenticated user's role group (see web/templates/portal/*.html).
+// Each entry has { id, label, icon } — no roles array needed because the server
+// already filtered to only the permitted sections for this role group.
+// The fallback below is a safe minimum used only during local development when
+// no role-specific template has injected the config.
+const _NAV_FALLBACK = [
+  { id: 'dashboard', label: 'Dashboard',  icon: 'home' },
+  { id: 'timetable', label: 'Timetable',  icon: 'calendar' },
+  { id: 'feed',      label: 'Activities', icon: 'image' },
 ];
+const NAV_ITEMS = (window.PORTAL_NAV_ITEMS && window.PORTAL_NAV_ITEMS.length > 0)
+  ? window.PORTAL_NAV_ITEMS
+  : _NAV_FALLBACK;
 
 function renderSidebar() {
   const sidebar = $('#portal-sidebar');
@@ -71,12 +79,9 @@ function renderSidebar() {
     }
   }
 
-  // Nav items
+  // Nav items — already filtered to permitted sections by the server-rendered template.
   if (!navList) return;
-  const role = state.user.role;
-  const visibleItems = NAV_ITEMS.filter(item =>
-    item.roles.includes('ALL') || item.roles.includes(role)
-  );
+  const visibleItems = NAV_ITEMS;
 
   navList.innerHTML = visibleItems.map(item => `
     <li>
@@ -127,6 +132,9 @@ function navigateTo(section) {
   loadSection(section);
 }
 
+// Expose globally so dashboard panel buttons can navigate without importing portal.js
+window.portalNavigate = navigateTo;
+
 // Map of section id → the exported init function name in that module
 const SECTION_INIT_FN = {
   dashboard:    'initDashboard',
@@ -145,6 +153,18 @@ const SECTION_INIT_FN = {
 };
 
 async function loadSection(section) {
+  // ── Section guard ─────────────────────────────────────────────────────────
+  // NAV_ITEMS is pre-filtered by the server to only the sections this role
+  // is permitted to access. If someone manually navigates to /portal/finance
+  // (for example) but finance is not in their NAV_ITEMS, redirect to dashboard
+  // rather than attempting to render an unauthorised section.
+  const permittedIds = NAV_ITEMS.map(n => n.id);
+  if (section !== 'dashboard' && !permittedIds.includes(section)) {
+    console.warn(`[portal] section "${section}" not permitted for this role — redirecting to dashboard.`);
+    history.replaceState({}, '', '/portal/dashboard');
+    section = 'dashboard';
+  }
+
   state.currentSection = section;
   updateActiveNavItem();
 
@@ -199,7 +219,11 @@ async function loadSection(section) {
 }
 
 async function renderQuizzesList(container, user) {
-  const canManage = ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','EXAM_OFFICER','TEACHER','CLASS_TEACHER'].includes(user.role);
+  // canManage is true for staff who can create/publish quizzes.
+  // PORTAL_ROLE_GROUP is injected by the server-rendered template.
+  const managerGroups = ['OWNER', 'ADMIN', 'TEACHER', 'STAFF'];
+  const canManage = managerGroups.includes(window.PORTAL_ROLE_GROUP || '')
+    || ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','EXAM_OFFICER','TEACHER','CLASS_TEACHER'].includes(user.role);
   container.innerHTML = `
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-bold text-primary">Quizzes</h1>
@@ -313,9 +337,7 @@ function initMobileNav() {
   const mobileNav = $('#portal-mobile-nav');
   if (!mobileNav || !state.user) return;
 
-  const topItems = NAV_ITEMS
-    .filter(item => item.roles.includes('ALL') || item.roles.includes(state.user.role))
-    .slice(0, 5);
+  const topItems = NAV_ITEMS.slice(0, 5);
 
   mobileNav.innerHTML = topItems.map(item => `
     <a href="/portal/${item.id}" class="flex flex-col items-center gap-1 py-2 px-3 text-white/60 hover:text-white transition-colors min-h-[44px] min-w-[44px]" data-section="${item.id}">

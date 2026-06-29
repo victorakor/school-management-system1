@@ -25,18 +25,18 @@ const (
 	PermViewReports          Permission = "view_reports"
 
 	// Student / pupil management
-	PermManageStudents Permission = "manage_students" // secondary
-	PermManagePupils   Permission = "manage_pupils"   // nursery & primary
+	PermManageStudents  Permission = "manage_students" // secondary
+	PermManagePupils    Permission = "manage_pupils"   // nursery & primary
 	PermPromoteStudents Permission = "promote_students"
 
 	// Teacher management (view + assign — not account creation)
 	PermManageTeachers Permission = "manage_teachers"
 
 	// Scores / Results workflow
-	PermEnterScores    Permission = "enter_scores"    // teachers: save draft scores
-	PermApproveScores  Permission = "approve_scores"  // senior staff: approve/reject submissions
-	PermManageResults  Permission = "manage_results"  // calculate remarks
-	PermPublishResults Permission = "publish_results" // make results visible to students/parents
+	PermEnterScores     Permission = "enter_scores"     // teachers: save draft scores
+	PermApproveScores   Permission = "approve_scores"   // senior staff: approve/reject submissions
+	PermManageResults   Permission = "manage_results"   // calculate remarks
+	PermPublishResults  Permission = "publish_results"  // make results visible to students/parents
 	PermOverrideResults Permission = "override_results" // owner only: bypass locks
 
 	// Exam / Academic Officer specific
@@ -45,12 +45,12 @@ const (
 	PermLockExamData         Permission = "lock_exam_data"        // lock after approval
 
 	// Admissions
-	PermManageAdmissions       Permission = "manage_admissions"        // full admissions management
-	PermProcessAdmissions      Permission = "process_admissions"       // admissions officer: verify docs, schedule, generate letters
-	PermApproveAdmissions      Permission = "approve_admissions"       // principal/head/owner: final approve/reject
+	PermManageAdmissions  Permission = "manage_admissions"  // full admissions management
+	PermProcessAdmissions Permission = "process_admissions" // admissions officer: verify docs, schedule, generate letters
+	PermApproveAdmissions Permission = "approve_admissions" // principal/head/owner: final approve/reject
 
 	// Finance (scoped by DivisionScope on the user record)
-	PermManageFinances   Permission = "manage_finances"    // bursar: create structure, record payments, discounts
+	PermManageFinances   Permission = "manage_finances"     // bursar: create structure, record payments, discounts
 	PermViewOwnChildFees Permission = "view_own_child_fees" // parent: read-only fee balance + receipts
 
 	// Timetable
@@ -60,7 +60,7 @@ const (
 	PermManageAttendance Permission = "manage_attendance"
 
 	// Quiz
-	PermManageQuizzes       Permission = "manage_quizzes"        // create, schedule, publish, close quizzes
+	PermManageQuizzes        Permission = "manage_quizzes"         // create, schedule, publish, close quizzes
 	PermApproveQuizQuestions Permission = "approve_quiz_questions" // approve/flag submitted questions
 	PermSubmitQuizQuestions  Permission = "submit_quiz_questions"  // teachers: submit questions to pool
 	PermTakeQuiz             Permission = "take_quiz"              // students/pupils
@@ -143,8 +143,8 @@ var rolePermissions = map[models.Role][]Permission{
 	// Manages secondary school. Cannot create staff accounts (owner only).
 	// Cannot directly edit teacher scores; can approve/reject and publish.
 	models.RolePrincipal: {
-		PermManageStudents,   // secondary students only (enforced by DivisionScope)
-		PermManageTeachers,   // view + assign secondary teachers
+		PermManageStudents, // secondary students only (enforced by DivisionScope)
+		PermManageTeachers, // view + assign secondary teachers
 		PermManageClasses,
 		PermManageSubjects,
 		PermAssignTeachers,
@@ -197,7 +197,7 @@ var rolePermissions = map[models.Role][]Permission{
 	// ── Head Teacher (Nursery/Primary scope) ──────────────────────────────────
 	// Mirrors Principal permissions but scoped to Nursery & Primary via DivisionScope.
 	models.RoleHeadTeacher: {
-		PermManagePupils,    // nursery/primary pupils
+		PermManagePupils, // nursery/primary pupils
 		PermManageTeachers,
 		PermManageClasses,
 		PermManageSubjects,
@@ -251,11 +251,11 @@ var rolePermissions = map[models.Role][]Permission{
 	// Can configure assessment periods, validate completeness, and lock data.
 	// CANNOT change teacher-entered scores or touch finances.
 	models.RoleExamOfficer: {
-		PermConfigureAssessments,  // set score structures
-		PermValidateScores,        // detect missing / inconsistent scores
-		PermApproveScores,         // approve or return for correction
-		PermManageResults,         // trigger computation; add admin remark
-		PermLockExamData,          // lock after publication
+		PermConfigureAssessments, // set score structures
+		PermValidateScores,       // detect missing / inconsistent scores
+		PermApproveScores,        // approve or return for correction
+		PermManageResults,        // trigger computation; add admin remark
+		PermLockExamData,         // lock after publication
 		PermManageQuizzes,
 		PermApproveQuizQuestions,
 		PermViewReports,
