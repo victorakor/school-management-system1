@@ -52,6 +52,7 @@ type PageData struct {
 	// Homepage extras
 	TotalStudents    int
 	TotalTeachers    int
+	TotalStaff       int // all active staff roles combined (used on about page)
 	YearsEstablished int
 	VideoHeroURL     string
 	AdmissionsOpen   bool // alias of AdmissionWindowOpen used in some templates
@@ -115,6 +116,12 @@ func (h *PagesHandler) buildPageData(r *http.Request) PageData {
 		if school.PrimaryColor != "" {
 			data.SchoolPrimaryColor = school.PrimaryColor
 		}
+		if school.EstablishedYear > 0 {
+			data.YearsEstablished = time.Now().Year() - school.EstablishedYear
+			if data.YearsEstablished < 1 {
+				data.YearsEstablished = 1
+			}
+		}
 	}
 
 	// ── Active admission window ────────────────────────────────────────────
@@ -142,8 +149,21 @@ func (h *PagesHandler) buildPageData(r *http.Request) PageData {
 	data.TotalStudents = int(studentCount)
 
 	var teacherCount int64
-	h.db.Model(&models.User{}).Where("role = ? AND is_active = true AND is_archived = false", models.RoleTeacher).Count(&teacherCount)
+	h.db.Model(&models.User{}).Where("role IN ? AND is_active = true AND is_archived = false",
+		[]string{string(models.RoleTeacher), string(models.RoleClassTeacher)},
+	).Count(&teacherCount)
 	data.TotalTeachers = int(teacherCount)
+
+	// All active staff (every role except students, pupils, parents) — used on the about page.
+	var staffCount int64
+	h.db.Model(&models.User{}).Where("role NOT IN ? AND is_active = true AND is_archived = false",
+		[]string{
+			string(models.RoleStudent),
+			string(models.RolePupil),
+			string(models.RoleParent),
+		},
+	).Count(&staffCount)
+	data.TotalStaff = int(staffCount)
 
 	// ── Latest 6 published feed posts for homepage preview ─────────────────
 	var posts []models.ActivityPost

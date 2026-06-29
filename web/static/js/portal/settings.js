@@ -23,6 +23,7 @@ export async function initSettings(container, user) {
           <div><label class="label">Phone</label><input id="s-phone" class="input w-full" /></div>
           <div><label class="label">Email</label><input id="s-email" type="email" class="input w-full" /></div>
           <div><label class="label">School Prefix (for Admission IDs)</label><input id="s-prefix" class="input w-full" maxlength="5" /></div>
+          <div><label class="label">Year Established</label><input id="s-established-year" type="number" class="input w-full" placeholder="e.g. 2010" min="1900" max="${new Date().getFullYear()}" /></div>
           <div><label class="label">Brand Color</label>
             <div class="flex gap-2 items-center">
               <input id="s-color" type="color" class="h-10 w-16 rounded-lg border border-neutral-200 p-1 cursor-pointer" />
@@ -86,6 +87,7 @@ async function loadSettings() {
     setValue('s-email', s.email);
     setValue('s-prefix', s.prefix);
     setValue('s-logo-url', s.logo_url);
+    if (s.established_year) setValue('s-established-year', s.established_year);
     if (s.primary_color) {
       document.getElementById('s-color').value = s.primary_color;
       document.getElementById('s-color-hex').value = s.primary_color;
@@ -104,15 +106,17 @@ async function saveSettings(e) {
   const errEl = document.getElementById('settings-error');
   errEl.classList.add('hidden');
 
+  const establishedYear = parseInt(document.getElementById('s-established-year').value.trim()) || 0;
   const body = {
-    name:          document.getElementById('s-name').value.trim(),
-    motto:         document.getElementById('s-motto').value.trim(),
-    address:       document.getElementById('s-address').value.trim(),
-    phone:         document.getElementById('s-phone').value.trim(),
-    email:         document.getElementById('s-email').value.trim(),
-    prefix:        document.getElementById('s-prefix').value.trim().toUpperCase(),
-    primary_color: document.getElementById('s-color-hex').value.trim(),
-    logo_url:      document.getElementById('s-logo-url').value.trim(),
+    name:             document.getElementById('s-name').value.trim(),
+    motto:            document.getElementById('s-motto').value.trim(),
+    address:          document.getElementById('s-address').value.trim(),
+    phone:            document.getElementById('s-phone').value.trim(),
+    email:            document.getElementById('s-email').value.trim(),
+    prefix:           document.getElementById('s-prefix').value.trim().toUpperCase(),
+    primary_color:    document.getElementById('s-color-hex').value.trim(),
+    logo_url:         document.getElementById('s-logo-url').value.trim(),
+    ...(establishedYear > 1900 && { established_year: establishedYear }),
   };
 
   try {

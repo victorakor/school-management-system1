@@ -226,6 +226,7 @@ type School struct {
 	TestimonialsContent        string `json:"testimonials_content"` // JSON array
 	VideoHeroURL               string `json:"video_hero_url"`
 	MaxVideoUploadMB           int    `gorm:"default:100" json:"max_video_upload_mb"`
+	EstablishedYear            int    `gorm:"default:0" json:"established_year"` // e.g. 2010; 0 means not set
 }
 
 // ─── User ──────────────────────────────────────────────────────────────────────

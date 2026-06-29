@@ -57,6 +57,7 @@ func (h *SettingsHandler) UpdateSchoolSettings(w http.ResponseWriter, r *http.Re
 		AdmissionDocumentsList string `json:"admission_documents_list"`
 		SchoolDirections       string `json:"school_directions"`
 		MaxVideoUploadMB       *int   `json:"max_video_upload_mb"`
+		EstablishedYear        *int   `json:"established_year"`
 	}
 	if err := utils.ReadJSON(r, &req); err != nil {
 		utils.RespondError(w, http.StatusBadRequest, "Invalid request body")
@@ -126,6 +127,9 @@ func (h *SettingsHandler) UpdateSchoolSettings(w http.ResponseWriter, r *http.Re
 	}
 	if req.MaxVideoUploadMB != nil {
 		updates["max_video_upload_mb"] = *req.MaxVideoUploadMB
+	}
+	if req.EstablishedYear != nil && *req.EstablishedYear > 1900 {
+		updates["established_year"] = *req.EstablishedYear
 	}
 
 	if err := h.db.Model(&models.School{}).Where("id = ?", claims.SchoolID).Updates(updates).Error; err != nil {
