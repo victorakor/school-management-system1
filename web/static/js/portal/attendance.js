@@ -1,15 +1,18 @@
-/**
- * attendance.js — Attendance marking and summary module
- */
-import { api } from '../shared/api.js';
-import { formatDate, showToast } from '../shared/utils.js';
+// Roles with PermManageAttendance — can mark attendance.
+const CAN_MARK_ATTENDANCE = [
+  'OWNER', 'PRINCIPAL', 'VICE_PRINCIPAL', 'HEAD_TEACHER', 'ASST_HEAD_TEACHER',
+  'TEACHER', 'CLASS_TEACHER',
+];
 
 export async function initAttendance(container, user) {
+  const canMark = user && CAN_MARK_ATTENDANCE.includes(user.role);
+
   container.innerHTML = `
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-bold text-primary">Attendance</h1>
     </div>
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 ${canMark ? 'lg:grid-cols-2' : ''} gap-6">
+      ${canMark ? `
       <div class="card p-6">
         <h2 class="font-semibold text-primary mb-4">Mark Attendance</h2>
         <div class="space-y-4">
@@ -28,16 +31,22 @@ export async function initAttendance(container, user) {
           <button id="load-att-sheet" class="btn btn-primary w-full">Load Students</button>
         </div>
         <div id="att-sheet" class="mt-4 space-y-2"></div>
-      </div>
+      </div>` : ''}
       <div class="card p-6">
         <h2 class="font-semibold text-primary mb-4">Attendance Summary</h2>
+        ${!canMark ? `
+        <div class="space-y-3 mb-4">
+          <select id="att-class" class="input w-full"><option value="">Select class…</option></select>
+        </div>` : ''}
         <div id="att-summary" class="text-text-secondary text-sm">Select a class to view summary.</div>
       </div>
     </div>
   `;
 
   await loadClasses();
-  document.getElementById('load-att-sheet')?.addEventListener('click', loadAttendanceSheet);
+  if (canMark) {
+    document.getElementById('load-att-sheet')?.addEventListener('click', loadAttendanceSheet);
+  }
 }
 
 async function loadClasses() {

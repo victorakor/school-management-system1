@@ -35,11 +35,11 @@ async function init() {
 const NAV_ITEMS = [
   { id: 'dashboard',   label: 'Dashboard',    icon: 'home',         roles: ['ALL'] },
   { id: 'admissions',  label: 'Admissions',   icon: 'file-text',    roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','ADMISSIONS_OFFICER','PARENT'] },
-  { id: 'students',    label: 'Students',     icon: 'users',        roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','EXAM_OFFICER'] },
+  { id: 'students',    label: 'Students',     icon: 'users',        roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','EXAM_OFFICER','TEACHER','CLASS_TEACHER'] },
   { id: 'attendance',  label: 'Attendance',   icon: 'check-square', roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','TEACHER','CLASS_TEACHER'] },
   { id: 'scores',      label: 'Scores',       icon: 'edit-3',       roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','EXAM_OFFICER','TEACHER','CLASS_TEACHER'] },
   { id: 'results',     label: 'Results',      icon: 'bar-chart-2',  roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','EXAM_OFFICER','STUDENT','PUPIL','PARENT'] },
-  { id: 'quizzes',     label: 'Quizzes',      icon: 'help-circle',  roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','EXAM_OFFICER','TEACHER','CLASS_TEACHER','STUDENT','PUPIL'] },
+  { id: 'quizzes',     label: 'Quizzes',      icon: 'help-circle',  roles: ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','EXAM_OFFICER','TEACHER','CLASS_TEACHER','STUDENT','PUPIL','PARENT'] },
   { id: 'timetable',   label: 'Timetable',    icon: 'calendar',     roles: ['ALL'] },
   { id: 'finance',     label: 'Finance',      icon: 'dollar-sign',  roles: ['OWNER','BURSAR','PARENT'] },
   { id: 'feed',        label: 'Activities',   icon: 'image',        roles: ['ALL'] },
@@ -199,7 +199,7 @@ async function loadSection(section) {
 }
 
 async function renderQuizzesList(container, user) {
-  const canManage = ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','TEACHER'].includes(user.role);
+  const canManage = ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER','EXAM_OFFICER','TEACHER','CLASS_TEACHER'].includes(user.role);
   container.innerHTML = `
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-bold text-primary">Quizzes</h1>

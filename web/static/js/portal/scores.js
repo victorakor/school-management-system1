@@ -1,10 +1,26 @@
 /**
  * scores.js — Score entry and approval interface
+ *
+ * Role capabilities per RBAC spec:
+ *   TEACHER / CLASS_TEACHER — enter scores, save draft, submit for approval; cannot approve own submission
+ *   EXAM_OFFICER            — approve / reject submitted sheets; cannot enter scores directly
+ *   PRINCIPAL / VP / HEAD / ASST_HEAD / OWNER — can approve / reject
  */
 import { api } from '../shared/api.js';
 import { showToast, formatDate } from '../shared/utils.js';
 
+// Roles that may approve or reject a submitted score sheet.
+const CAN_APPROVE_SCORES = [
+  'OWNER', 'PRINCIPAL', 'VICE_PRINCIPAL',
+  'HEAD_TEACHER', 'ASST_HEAD_TEACHER', 'EXAM_OFFICER',
+];
+
+// Module-level user reference for inner functions.
+let _scoresUser = null;
+
 export async function initScores(container, user) {
+  _scoresUser = user;
+
   container.innerHTML = `
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-bold text-primary">Score Entry</h1>
@@ -97,7 +113,16 @@ async function loadScoreSheet() {
 function renderScoreSheet(container, sheet, structure, params) {
   const components = structure?.components || [];
   const status = sheet.status || 'DRAFT';
+  const role = _scoresUser?.role || '';
+
+  // A sheet is locked for entry once submitted or approved.
   const isLocked = status === 'SUBMITTED' || status === 'APPROVED';
+
+  // Only entry-level roles can save drafts / submit.
+  const canEnter = ['TEACHER', 'CLASS_TEACHER'].includes(role);
+
+  // Only approval-level roles can approve / reject.
+  const canApprove = CAN_APPROVE_SCORES.includes(role);
 
   container.innerHTML = `
     <div class="card overflow-hidden">
@@ -107,11 +132,11 @@ function renderScoreSheet(container, sheet, structure, params) {
           <p class="text-xs text-secondary mt-0.5">Status: <span class="badge badge-${statusColor(status)}">${status}</span></p>
         </div>
         <div class="flex gap-2">
-          ${!isLocked ? `
+          ${canEnter && !isLocked ? `
             <button id="save-draft-btn" class="btn btn-outline btn-sm">Save Draft</button>
             <button id="submit-scores-btn" class="btn btn-primary btn-sm">Submit for Approval</button>
           ` : ''}
-          ${status === 'SUBMITTED' ? `
+          ${canApprove && status === 'SUBMITTED' ? `
             <button id="approve-btn" class="btn btn-success btn-sm">Approve</button>
             <button id="reject-btn" class="btn btn-danger btn-sm">Reject</button>
           ` : ''}
@@ -136,14 +161,14 @@ function renderScoreSheet(container, sheet, structure, params) {
                     <input type="number" class="score-input w-16 text-center border rounded px-1 py-0.5 text-sm"
                            data-component="${ci}" data-max="${c.max_marks}"
                            value="${student.scores?.components?.[ci]?.score || ''}"
-                           min="0" max="${c.max_marks}" ${isLocked ? 'disabled' : ''}
+                           min="0" max="${c.max_marks}" ${isLocked || !canEnter ? 'disabled' : ''}
                            oninput="window._validateScore(this)">
                   </td>`).join('')}
                 <td>
                   <input type="number" class="score-input exam-score w-16 text-center border rounded px-1 py-0.5 text-sm"
                          data-max="${structure?.exam_marks || 70}"
                          value="${student.scores?.exam_score || ''}"
-                         min="0" max="${structure?.exam_marks || 70}" ${isLocked ? 'disabled' : ''}
+                         min="0" max="${structure?.exam_marks || 70}" ${isLocked || !canEnter ? 'disabled' : ''}
                          oninput="window._validateScore(this)">
                 </td>
                 <td class="font-semibold total-cell" id="total-${student.id}">

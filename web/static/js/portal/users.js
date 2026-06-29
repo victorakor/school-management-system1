@@ -32,10 +32,13 @@ const ALL_FILTERABLE_ROLES = [
 ];
 
 export async function initUsers(container, user) {
+  // Only OWNER can create staff accounts. PRINCIPAL/HEAD/ICT_ADMIN can view list.
+  const canCreate = user && user.role === 'OWNER';
+
   container.innerHTML = `
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-bold text-primary">Staff</h1>
-      <button id="add-user-btn" class="btn btn-primary">+ Add Staff Member</button>
+      ${canCreate ? '<button id="add-user-btn" class="btn btn-primary">+ Add Staff Member</button>' : ''}
     </div>
     <div class="flex gap-2 mb-4">
       <select id="role-filter" class="input text-sm py-2">
@@ -46,8 +49,9 @@ export async function initUsers(container, user) {
     <div id="users-list"></div>
   `;
 
-  // ── Modal (appended to body so z-index is never trapped) ──────────────
-  let modal = document.getElementById('add-user-modal');
+  // Only wire up the add-user modal for OWNER
+  if (canCreate) {
+    let modal = document.getElementById('add-user-modal');
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'add-user-modal';
@@ -84,22 +88,23 @@ export async function initUsers(container, user) {
       </div>
     `;
     document.body.appendChild(modal);
-  }
+    }
 
-  const openModal  = () => { modal.style.display = 'flex'; updateDivisionHint(); };
-  const closeModal = () => { modal.style.display = 'none'; clearForm(); };
+    const openModal  = () => { modal.style.display = 'flex'; updateDivisionHint(); };
+    const closeModal = () => { modal.style.display = 'none'; clearForm(); };
 
-  document.getElementById('add-user-btn').addEventListener('click', openModal);
-  modal.querySelector('#cancel-add-btn').addEventListener('click', closeModal);
-  modal.querySelector('#modal-backdrop').addEventListener('click', closeModal);
-  modal.querySelector('#confirm-add-btn').addEventListener('click', () => createUser(closeModal));
+    document.getElementById('add-user-btn').addEventListener('click', openModal);
+    modal.querySelector('#cancel-add-btn').addEventListener('click', closeModal);
+    modal.querySelector('#modal-backdrop').addEventListener('click', closeModal);
+    modal.querySelector('#confirm-add-btn').addEventListener('click', () => createUser(closeModal));
 
-  // Update division hint when role changes
-  modal.querySelector('#new-role').addEventListener('change', updateDivisionHint);
+    // Update division hint when role changes
+    modal.querySelector('#new-role').addEventListener('change', updateDivisionHint);
 
-  document.addEventListener('keydown', function escHandler(e) {
-    if (e.key === 'Escape' && modal.style.display === 'flex') closeModal();
-  });
+    document.addEventListener('keydown', function escHandler(e) {
+      if (e.key === 'Escape' && modal.style.display === 'flex') closeModal();
+    });
+  } // end canCreate
 
   document.getElementById('role-filter').addEventListener('change', loadUsers);
   await loadUsers();

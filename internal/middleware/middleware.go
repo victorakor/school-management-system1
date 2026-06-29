@@ -127,6 +127,30 @@ func RequirePermission(perm permissions.Permission) func(http.Handler) http.Hand
 	}
 }
 
+// RequireAnyPermission passes the request if the user holds at least one of
+// the listed permissions. Use this when a route must be reachable by roles
+// whose capability overlaps (e.g. PermManageStudents OR PermManagePupils).
+func RequireAnyPermission(perms ...permissions.Permission) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			claims := GetClaims(r)
+			if claims == nil {
+				respondUnauthorized(w, "Authentication required")
+				return
+			}
+
+			for _, p := range perms {
+				if permissions.HasPermission(claims.Role, p) {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+
+			respondForbidden(w, "You do not have permission to perform this action")
+		})
+	}
+}
+
 // RequireDivisionScope enforces that the user's division scope matches the requested division.
 func RequireDivisionScope(division models.DivisionScope) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {

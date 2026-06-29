@@ -1,20 +1,38 @@
 /**
- * feed-admin.js — Activity feed management for admin roles
+ * feed-admin.js — Activity feed management for admin roles.
+ *
+ * Role capabilities per RBAC spec:
+ *   OWNER / PRINCIPAL / VP / HEAD / ASST_HEAD / BLOG_MANAGER — can create, edit, archive posts
+ *   All other authenticated roles — read-only view of published feed
  */
 import { api } from '../shared/api.js';
 import { formatDate, showToast } from '../shared/utils.js';
 
-export async function initFeedAdmin(container) {
+// Roles that can create / edit / delete posts
+const CAN_POST = [
+  'OWNER', 'PRINCIPAL', 'VICE_PRINCIPAL', 'HEAD_TEACHER', 'ASST_HEAD_TEACHER',
+  'BLOG_MANAGER',
+];
+
+// Module-level user reference for inner functions.
+let _feedUser = null;
+
+export async function initFeedAdmin(container, user) {
+  _feedUser = user;
+  const canPost = user && CAN_POST.includes(user.role);
+
   container.innerHTML = `
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-bold text-primary">Activity Feed</h1>
-      <button id="new-post-btn" class="btn btn-primary">New Post</button>
+      ${canPost ? '<button id="new-post-btn" class="btn btn-primary">New Post</button>' : ''}
     </div>
     <div id="feed-admin-list" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
     <div id="post-modal" class="hidden"></div>
   `;
 
-  document.getElementById('new-post-btn').addEventListener('click', openPostModal);
+  if (canPost) {
+    document.getElementById('new-post-btn').addEventListener('click', openPostModal);
+  }
   await loadPosts();
 }
 
@@ -51,11 +69,13 @@ async function loadPosts() {
               <span class="text-xs text-secondary">${formatDate(post.created_at)}</span>
             </div>
             <div class="flex gap-1">
-              <button class="btn btn-outline btn-sm" onclick="window._editPost('${post.id}')">Edit</button>
-              <button class="btn btn-${post.is_archived ? 'success' : 'danger'} btn-sm"
-                      onclick="window._toggleArchivePost('${post.id}', ${post.is_archived})">
-                ${post.is_archived ? 'Restore' : 'Archive'}
-              </button>
+              ${_feedUser && CAN_POST.includes(_feedUser.role) ? `
+                <button class="btn btn-outline btn-sm" onclick="window._editPost('${post.id}')">Edit</button>
+                <button class="btn btn-${post.is_archived ? 'success' : 'danger'} btn-sm"
+                        onclick="window._toggleArchivePost('${post.id}', ${post.is_archived})">
+                  ${post.is_archived ? 'Restore' : 'Archive'}
+                </button>
+              ` : ''}
             </div>
           </div>
         </div>

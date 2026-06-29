@@ -1,11 +1,31 @@
 /**
  * admissions.js — Admissions portal module
  * Handles application listing, status updates, and appointment management.
+ *
+ * Role capabilities per RBAC spec:
+ *   OWNER / PRINCIPAL / VICE_PRINCIPAL / HEAD_TEACHER — can approve / decline / mark under review
+ *   ADMISSIONS_OFFICER                                — can mark under review only (cannot approve independently)
+ *   PARENT                                            — sees only their own applications (different endpoint)
  */
 import { api } from '../shared/api.js';
 import { formatDate, showToast } from '../shared/utils.js';
 
-export async function initAdmissions(container) {
+// Roles that can give final admission decisions (approve or decline).
+const CAN_APPROVE = ['OWNER', 'PRINCIPAL', 'VICE_PRINCIPAL', 'HEAD_TEACHER', 'ASST_HEAD_TEACHER'];
+// Roles that can process applications (move to under-review, schedule interviews, etc.)
+const CAN_PROCESS = [...CAN_APPROVE, 'ADMISSIONS_OFFICER'];
+
+// Module-level user reference so inner functions can access role.
+let _user = null;
+
+export async function initAdmissions(container, user) {
+  _user = user;
+
+  // Parents see only their own applications via a different endpoint.
+  if (user && user.role === 'PARENT') {
+    return initParentAdmissions(container);
+  }
+
   container.innerHTML = `
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-bold text-primary">Admissions</h1>
@@ -32,6 +52,47 @@ export async function initAdmissions(container) {
   document.getElementById('status-filter').addEventListener('change', loadApplications);
   document.getElementById('division-filter').addEventListener('change', loadApplications);
   await loadApplications();
+}
+
+async function initParentAdmissions(container) {
+  container.innerHTML = `
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold text-primary">My Applications</h1>
+      <p class="text-text-secondary text-sm mt-1">Track the status of your child's admission application.</p>
+    </div>
+    <div id="parent-applications-list" class="space-y-3"></div>
+  `;
+
+  const list = document.getElementById('parent-applications-list');
+  list.innerHTML = skeletonRows(3);
+
+  try {
+    const data = await api.get('/api/admissions/my-applications');
+    const apps = data.applications || data || [];
+
+    if (!apps.length) {
+      list.innerHTML = `<div class="card p-12 text-center text-text-secondary">No applications found. Visit the <a href="/admissions" class="text-accent underline">Admissions page</a> to apply.</div>`;
+      return;
+    }
+
+    list.innerHTML = apps.map(app => `
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <p class="font-semibold text-primary">${app.child_name}</p>
+            <p class="text-xs text-text-secondary">${app.division} · Ref: <span class="font-mono">${app.ref_number}</span></p>
+          </div>
+          <span class="badge badge-${statusColor(app.status)}">${app.status.replace(/_/g, ' ')}</span>
+        </div>
+        ${app.appointment_date ? `
+          <div class="flex items-center gap-2 text-sm text-text-secondary mt-2 p-3 bg-background rounded-lg">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Interview: ${formatDate(app.appointment_date)} at ${app.appointment_time || ''}
+          </div>` : ''}
+      </div>`).join('');
+  } catch (err) {
+    list.innerHTML = `<div class="card p-6 text-danger text-sm">Failed to load applications. ${err.message || ''}</div>`;
+  }
 }
 
 async function loadApplications() {
@@ -119,10 +180,12 @@ async function openApplicationModal(id) {
         ${app.appointment_date ? `<div><p class="label">Appointment</p><p class="font-medium">${formatDate(app.appointment_date)} at ${app.appointment_time}</p></div>` : ''}
         ${app.medical_conditions ? `<div class="col-span-2"><p class="label">Medical Conditions</p><p class="text-sm">${app.medical_conditions}</p></div>` : ''}
       </div>
-      <div class="flex gap-2 mt-6 pt-4 border-t border-neutral-100">
-        ${app.status === 'PENDING' || app.status === 'UNDER_REVIEW' ? `
+      <div class="flex gap-2 mt-6 pt-4 border-t border-neutral-100 flex-wrap">
+        ${(app.status === 'PENDING' || app.status === 'UNDER_REVIEW') && CAN_APPROVE.includes(_user?.role) ? `
           <button class="btn btn-success flex-1" onclick="window._admissionsUpdateStatus('${app.id}', 'ACCEPTED')">Accept</button>
           <button class="btn btn-danger flex-1" onclick="window._admissionsUpdateStatus('${app.id}', 'DECLINED')">Decline</button>
+        ` : ''}
+        ${(app.status === 'PENDING') && CAN_PROCESS.includes(_user?.role) ? `
           <button class="btn btn-secondary flex-1" onclick="window._admissionsUpdateStatus('${app.id}', 'UNDER_REVIEW')">Mark Under Review</button>
         ` : ''}
         ${app.passport_url ? `<a href="${app.passport_url}" target="_blank" class="btn btn-outline flex-1">View Passport</a>` : ''}

@@ -5,10 +5,13 @@ import { api } from '../shared/api.js';
 import { formatDate, formatCurrency, showToast } from '../shared/utils.js';
 
 export async function initFinance(container, user) {
+  // Only BURSAR (and OWNER) can record payments and set fee structures.
+  const canManage = user && (user.role === 'BURSAR' || user.role === 'OWNER');
+
   container.innerHTML = `
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-bold text-primary">Finance</h1>
-      <button id="record-payment-btn" class="btn btn-primary">Record Payment</button>
+      ${canManage ? '<button id="record-payment-btn" class="btn btn-primary">Record Payment</button>' : ''}
     </div>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
       <select id="fin-division" class="input"><option value="">Select Division</option>
@@ -21,7 +24,10 @@ export async function initFinance(container, user) {
     </div>
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div id="fee-structure-panel" class="card p-5">
-        <h3 class="font-semibold text-primary mb-4">Fee Structure</h3>
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-semibold text-primary">Fee Structure</h3>
+          ${canManage ? '<button class="btn btn-outline btn-sm" onclick="window._openFeeStructureForm()">Edit Structure</button>' : ''}
+        </div>
         <div id="fee-structure-content" class="text-secondary text-sm">Select division, session, and term to view fee structure.</div>
       </div>
       <div id="recent-payments-panel" class="card p-5">
@@ -36,7 +42,9 @@ export async function initFinance(container, user) {
   document.getElementById('fin-session').addEventListener('change', onSessionChange);
   document.getElementById('fin-term').addEventListener('change', loadFeeStructure);
   document.getElementById('fin-division').addEventListener('change', loadFeeStructure);
-  document.getElementById('record-payment-btn').addEventListener('click', openPaymentModal);
+  if (canManage) {
+    document.getElementById('record-payment-btn').addEventListener('click', openPaymentModal);
+  }
 }
 
 async function loadSessions() {
@@ -83,8 +91,7 @@ async function loadFeeStructure() {
   try {
     const structure = await api.get(`/api/finance/structure?division_id=${divisionID}&session_id=${sessionID}&term_id=${termID}`);
     if (!structure || !structure.categories?.length) {
-      content.innerHTML = `<p class="text-secondary text-sm">No fee structure set for this period.</p>
-        <button class="btn btn-outline btn-sm mt-3" onclick="window._openFeeStructureForm()">Set Fee Structure</button>`;
+      content.innerHTML = `<p class="text-secondary text-sm">No fee structure set for this period.</p>`;
       return;
     }
     content.innerHTML = `

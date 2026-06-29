@@ -74,13 +74,6 @@ function renderStatCards(container, stats, role) {
 }
 
 function getStatCardsForRole(stats, role) {
-  const base = [
-    { label: 'Total Students', value: stats.total_students || 0, color: '#2563EB', icon: iconSVG('users'), sub: 'Enrolled this session' },
-    { label: 'Active Staff', value: stats.total_staff || 0, color: '#10B981', icon: iconSVG('briefcase'), sub: 'All roles' },
-    { label: 'Applications', value: stats.pending_applications || 0, color: '#F59E0B', icon: iconSVG('file-text'), sub: 'Pending review' },
-    { label: 'Quizzes Active', value: stats.active_quizzes || 0, color: '#0F2557', icon: iconSVG('zap'), sub: 'Currently running' },
-  ];
-
   if (role === 'BURSAR') {
     return [
       { label: 'Collected Today', value: stats.collected_today || 0, color: '#10B981', icon: iconSVG('trending-up'), sub: 'NGN', format: 'currency' },
@@ -90,7 +83,86 @@ function getStatCardsForRole(stats, role) {
     ];
   }
 
-  return base;
+  if (role === 'OWNER') {
+    return [
+      { label: 'Total Students', value: stats.total_students || 0, color: '#2563EB', icon: iconSVG('users'), sub: 'Enrolled this session' },
+      { label: 'Active Staff', value: stats.total_staff || 0, color: '#10B981', icon: iconSVG('briefcase'), sub: 'All roles' },
+      { label: 'Applications', value: stats.pending_applications || 0, color: '#F59E0B', icon: iconSVG('file-text'), sub: 'Pending review' },
+      { label: 'Quizzes Active', value: stats.active_quizzes || 0, color: '#0F2557', icon: iconSVG('zap'), sub: 'Currently running' },
+    ];
+  }
+
+  if (role === 'PRINCIPAL' || role === 'VICE_PRINCIPAL') {
+    return [
+      { label: 'Secondary Students', value: stats.total_students || 0, color: '#2563EB', icon: iconSVG('users'), sub: 'Secondary division' },
+      { label: 'Classes', value: stats.classes || 0, color: '#10B981', icon: iconSVG('briefcase'), sub: 'Active classes' },
+      { label: 'Pending Approvals', value: stats.pending_score_approvals || 0, color: '#F59E0B', icon: iconSVG('check-square'), sub: 'Score submissions' },
+      { label: 'Active Quizzes', value: stats.active_quizzes || 0, color: '#0F2557', icon: iconSVG('zap'), sub: 'Currently running' },
+    ];
+  }
+
+  if (role === 'HEAD_TEACHER' || role === 'ASST_HEAD_TEACHER') {
+    return [
+      { label: 'Primary Pupils', value: stats.primary_students || 0, color: '#2563EB', icon: iconSVG('users'), sub: 'Primary division' },
+      { label: 'Nursery Pupils', value: stats.nursery_students || 0, color: '#10B981', icon: iconSVG('users'), sub: 'Nursery division' },
+      { label: 'Pending Approvals', value: stats.pending_score_approvals || 0, color: '#F59E0B', icon: iconSVG('check-square'), sub: 'Score submissions' },
+      { label: 'Active Quizzes', value: stats.active_quizzes || 0, color: '#0F2557', icon: iconSVG('zap'), sub: 'Currently running' },
+    ];
+  }
+
+  if (role === 'EXAM_OFFICER') {
+    return [
+      { label: 'Pending Approvals', value: stats.pending_score_approvals || 0, color: '#F59E0B', icon: iconSVG('check-square'), sub: 'School-wide score submissions' },
+      { label: 'Active Quizzes', value: stats.active_quizzes || 0, color: '#0F2557', icon: iconSVG('zap'), sub: 'Currently running' },
+    ];
+  }
+
+  if (role === 'ADMISSIONS_OFFICER') {
+    return [
+      { label: 'Pending', value: stats.pending_applications || 0, color: '#F59E0B', icon: iconSVG('file-text'), sub: 'Awaiting review' },
+      { label: 'Under Review', value: stats.under_review_applications || 0, color: '#2563EB', icon: iconSVG('file-text'), sub: 'Being processed' },
+    ];
+  }
+
+  if (role === 'TEACHER' || role === 'CLASS_TEACHER') {
+    return [
+      { label: 'My Classes', value: stats.assigned_classes || 0, color: '#2563EB', icon: iconSVG('briefcase'), sub: 'Assigned this term' },
+      { label: 'Draft Scores', value: stats.draft_scores || 0, color: '#F59E0B', icon: iconSVG('edit-3'), sub: 'Awaiting submission' },
+      { label: 'Active Quizzes', value: stats.active_quizzes || 0, color: '#0F2557', icon: iconSVG('zap'), sub: 'Currently running' },
+    ];
+  }
+
+  if (role === 'BLOG_MANAGER') {
+    return [
+      { label: 'Published Posts', value: stats.published_posts || 0, color: '#10B981', icon: iconSVG('image'), sub: 'Live on feed' },
+    ];
+  }
+
+  if (role === 'ICT_ADMIN') {
+    return [
+      { label: 'Total Users', value: stats.total_users || 0, color: '#2563EB', icon: iconSVG('users'), sub: 'All accounts' },
+    ];
+  }
+
+  if (role === 'STUDENT' || role === 'PUPIL') {
+    return [
+      { label: 'Attendance', value: stats.attendance_percentage || 0, color: '#10B981', icon: iconSVG('check-square'), sub: 'This term (%)' },
+      { label: 'Active Quizzes', value: stats.active_quizzes || 0, color: '#0F2557', icon: iconSVG('zap'), sub: 'Available now' },
+    ];
+  }
+
+  if (role === 'PARENT') {
+    const childCount = Array.isArray(stats.children) ? stats.children.length : 0;
+    return [
+      { label: 'My Children', value: childCount, color: '#2563EB', icon: iconSVG('users'), sub: 'Enrolled' },
+      { label: 'Unread Alerts', value: stats.unread_notifications || 0, color: '#F59E0B', icon: iconSVG('bell'), sub: 'Notifications' },
+    ];
+  }
+
+  // Fallback
+  return [
+    { label: 'Total Students', value: stats.total_students || 0, color: '#2563EB', icon: iconSVG('users'), sub: 'Enrolled this session' },
+  ];
 }
 
 function animateCount(el, target) {
@@ -119,7 +191,15 @@ async function renderPanels(container, user) {
       renderRecentApplicationsPanel(container),
       renderPendingScoresPanel(container),
     ]);
-  } else if (user.role === 'TEACHER') {
+  } else if (user.role === 'EXAM_OFFICER') {
+    await Promise.all([
+      renderPendingScoresPanel(container),
+    ]);
+  } else if (user.role === 'ADMISSIONS_OFFICER') {
+    await Promise.all([
+      renderRecentApplicationsPanel(container),
+    ]);
+  } else if (user.role === 'TEACHER' || user.role === 'CLASS_TEACHER') {
     await Promise.all([
       renderTodayTimetablePanel(container),
       renderPendingActionsPanel(container),
@@ -136,6 +216,10 @@ async function renderPanels(container, user) {
     ]);
   } else if (user.role === 'PARENT') {
     await renderParentPanel(container);
+  } else if (user.role === 'BLOG_MANAGER') {
+    await renderBlogManagerPanel(container);
+  } else if (user.role === 'ICT_ADMIN') {
+    await renderICTAdminPanel(container);
   }
 }
 
@@ -258,6 +342,22 @@ async function renderParentPanel(container) {
   body.innerHTML = emptyState('Child information will appear here');
 }
 
+async function renderBlogManagerPanel(container) {
+  const panel = createPanel('Recent Posts', 'image');
+  panel.style.gridColumn = '1 / -1';
+  container.appendChild(panel);
+  const body = panel.querySelector('.panel-body');
+  body.innerHTML = `<p class="text-sm text-secondary">Use the <strong>Activities</strong> section in the sidebar to manage feed posts and announcements.</p>`;
+}
+
+async function renderICTAdminPanel(container) {
+  const panel = createPanel('System Overview', 'settings');
+  panel.style.gridColumn = '1 / -1';
+  container.appendChild(panel);
+  const body = panel.querySelector('.panel-body');
+  body.innerHTML = `<p class="text-sm text-secondary">Use the <strong>Staff</strong> and <strong>Settings</strong> sections to manage user accounts and system configuration.</p>`;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function createPanel(title, icon) {
@@ -296,6 +396,9 @@ function iconSVG(name) {
     award: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>`,
     'credit-card': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>`,
     bell: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
+    image: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`,
+    'edit-3': `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`,
+    settings: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
   };
   return icons[name] || '';
 }

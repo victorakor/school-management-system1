@@ -213,7 +213,8 @@ function showResultModal(result) {
 }
 
 function canPublish(role) {
-  return ['OWNER', 'PRINCIPAL', 'VICE_PRINCIPAL', 'HEAD_TEACHER', 'ASST_HEAD_TEACHER'].includes(role);
+  // EXAM_OFFICER has PermPublishResults via ManageResults; include explicitly.
+  return ['OWNER', 'PRINCIPAL', 'VICE_PRINCIPAL', 'HEAD_TEACHER', 'ASST_HEAD_TEACHER', 'EXAM_OFFICER'].includes(role);
 }
 
 function ordinal(n) {

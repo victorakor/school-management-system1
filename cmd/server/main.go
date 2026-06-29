@@ -154,11 +154,13 @@ func main() {
 
 			// User management
 			r.Group(func(r chi.Router) {
-				r.Use(middleware.RequirePermission(permissions.PermManageUsers))
-				r.Get("/users", usersHandler.ListUsers)
-				r.Post("/users", usersHandler.CreateUser)
-				r.Put("/users/{id}", usersHandler.UpdateUser)
-				r.Delete("/users/{id}", usersHandler.ArchiveUser)
+				// Listing users: OWNER + ICT_ADMIN (who resets passwords / manages accounts per RBAC spec).
+				// Creating / modifying / archiving users: OWNER only (PermManageUsers).
+				r.With(middleware.RequireAnyPermission(permissions.PermManageUsers, permissions.PermManageSystemConfig)).
+					Get("/users", usersHandler.ListUsers)
+				r.With(middleware.RequirePermission(permissions.PermManageUsers)).Post("/users", usersHandler.CreateUser)
+				r.With(middleware.RequirePermission(permissions.PermManageUsers)).Put("/users/{id}", usersHandler.UpdateUser)
+				r.With(middleware.RequirePermission(permissions.PermManageUsers)).Delete("/users/{id}", usersHandler.ArchiveUser)
 			})
 
 			// School settings
@@ -172,17 +174,18 @@ func main() {
 
 			// Sessions
 			r.Group(func(r chi.Router) {
-				r.Use(middleware.RequirePermission(permissions.PermManageSessions))
+				// All staff roles need to READ sessions (for score entry dropdowns, timetable, etc.).
+				// Only OWNER has PermManageSessions (create / activate). Split the group.
 				r.Get("/sessions", academicHandler.ListSessions)
-				r.Post("/sessions", academicHandler.CreateSession)
-				r.Put("/sessions/{id}/activate", academicHandler.SetActiveSession)
+				r.With(middleware.RequirePermission(permissions.PermManageSessions)).Post("/sessions", academicHandler.CreateSession)
+				r.With(middleware.RequirePermission(permissions.PermManageSessions)).Put("/sessions/{id}/activate", academicHandler.SetActiveSession)
 			})
 
 			// Terms
 			r.Group(func(r chi.Router) {
-				r.Use(middleware.RequirePermission(permissions.PermManageTerms))
+				// All staff need to read terms for score entry, timetable, etc.
 				r.Get("/sessions/{sessionId}/terms", academicHandler.ListTerms)
-				r.Post("/sessions/{sessionId}/terms", academicHandler.CreateTerm)
+				r.With(middleware.RequirePermission(permissions.PermManageTerms)).Post("/sessions/{sessionId}/terms", academicHandler.CreateTerm)
 			})
 
 			// Classes
@@ -226,7 +229,10 @@ func main() {
 
 			// Students
 			r.Group(func(r chi.Router) {
-				r.Use(middleware.RequirePermission(permissions.PermManageStudents))
+				// HEAD_TEACHER / ASST_HEAD_TEACHER manage nursery+primary pupils (PermManagePupils).
+				// PRINCIPAL / VICE_PRINCIPAL / OWNER manage secondary students (PermManageStudents).
+				// Both permissions unlock this resource; division-scope filtering is applied inside the handler.
+				r.Use(middleware.RequireAnyPermission(permissions.PermManageStudents, permissions.PermManagePupils))
 				r.Get("/students", studentsHandler.ListStudents)
 				r.Get("/students/{id}", studentsHandler.GetStudent)
 				r.Put("/students/{id}", studentsHandler.UpdateStudent)

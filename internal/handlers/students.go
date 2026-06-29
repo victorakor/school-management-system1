@@ -29,8 +29,22 @@ func NewStudentsHandler(db *gorm.DB, cfg *config.Config) *StudentsHandler {
 func (h *StudentsHandler) ListStudents(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.GetClaims(r)
 	query := h.db.Where("school_id = ? AND is_archived = false", claims.SchoolID)
+
+	// Division scope enforcement per RBAC spec:
+	//   HEAD_TEACHER / ASST_HEAD_TEACHER — nursery+primary only (PermManagePupils)
+	//   PRINCIPAL / VICE_PRINCIPAL       — secondary only (PermManageStudents, DivisionScope=SECONDARY)
+	//   OWNER / EXAM_OFFICER             — unrestricted
+	switch claims.Role {
+	case models.RoleHeadTeacher, models.RoleAsstHeadTeacher:
+		query = query.Joins("JOIN divisions d ON d.id = students.division_id").
+			Where("d.scope IN ?", []string{"NURSERY", "PRIMARY"})
+	case models.RolePrincipal, models.RoleVicePrincipal:
+		query = query.Joins("JOIN divisions d ON d.id = students.division_id").
+			Where("d.scope = ?", "SECONDARY")
+	}
+
 	if divID := r.URL.Query().Get("division_id"); divID != "" {
-		query = query.Where("division_id = ?", divID)
+		query = query.Where("students.division_id = ?", divID)
 	}
 	if classID := r.URL.Query().Get("class_id"); classID != "" {
 		// Join with StudentClassHistory to filter by current class
@@ -38,15 +52,15 @@ func (h *StudentsHandler) ListStudents(w http.ResponseWriter, r *http.Request) {
 			Where("sch.class_id = ?", classID)
 	}
 	if search := r.URL.Query().Get("search"); search != "" {
-		query = query.Where("LOWER(full_name) LIKE LOWER(?)", "%"+search+"%")
+		query = query.Where("LOWER(students.full_name) LIKE LOWER(?)", "%"+search+"%")
 	}
 	if alumni := r.URL.Query().Get("alumni"); alumni == "true" {
-		query = query.Where("is_alumni = true")
+		query = query.Where("students.is_alumni = true")
 	} else {
-		query = query.Where("is_alumni = false")
+		query = query.Where("students.is_alumni = false")
 	}
 	var students []models.Student
-	query.Order("full_name ASC").Find(&students)
+	query.Order("students.full_name ASC").Find(&students)
 	utils.RespondSuccess(w, http.StatusOK, "", students)
 }
 

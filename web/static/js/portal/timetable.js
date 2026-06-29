@@ -7,14 +7,22 @@ import { showToast } from '../shared/utils.js';
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const PERIODS = 8;
 
+// Roles that can create / modify timetables (PermManageTimetable holders).
+const CAN_MANAGE_TIMETABLE = [
+  'OWNER', 'PRINCIPAL', 'VICE_PRINCIPAL', 'HEAD_TEACHER', 'ASST_HEAD_TEACHER',
+];
+
 export async function initTimetable(container, user) {
+  const canManage = user && CAN_MANAGE_TIMETABLE.includes(user.role);
+
   container.innerHTML = `
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-bold text-primary">Timetable</h1>
-      <div class="flex gap-2">
-        <button id="tab-builder" class="btn btn-primary btn-sm">Builder</button>
-        <button id="tab-upload" class="btn btn-outline btn-sm">Upload File</button>
-      </div>
+      ${canManage ? `
+        <div class="flex gap-2">
+          <button id="tab-builder" class="btn btn-primary btn-sm">Builder</button>
+          <button id="tab-upload" class="btn btn-outline btn-sm">Upload File</button>
+        </div>` : ''}
     </div>
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
       <select id="tt-session" class="input"><option value="">Session</option></select>
@@ -27,40 +35,44 @@ export async function initTimetable(container, user) {
       </select>
       <select id="tt-class" class="input"><option value="">Class (optional)</option></select>
     </div>
-    <div id="tt-builder-panel">
-      <div id="tt-grid-container" class="card overflow-hidden"></div>
-      <div class="mt-4 flex gap-3">
-        <button id="tt-save-btn" class="btn btn-primary">Save Timetable</button>
-        <button id="tt-clear-btn" class="btn btn-outline">Clear Grid</button>
+    ${canManage ? `
+      <div id="tt-builder-panel">
+        <div id="tt-grid-container" class="card overflow-hidden"></div>
+        <div class="mt-4 flex gap-3">
+          <button id="tt-save-btn" class="btn btn-primary">Save Timetable</button>
+          <button id="tt-clear-btn" class="btn btn-outline">Clear Grid</button>
+        </div>
       </div>
-    </div>
-    <div id="tt-upload-panel" class="hidden card p-6">
-      <h3 class="font-semibold text-primary mb-4">Upload Timetable File</h3>
-      <div id="tt-dropzone" class="border-2 border-dashed border-neutral-200 rounded-xl p-12 text-center cursor-pointer hover:border-accent transition-colors">
-        <svg class="mx-auto mb-3 text-secondary" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-        </svg>
-        <p class="text-secondary text-sm">Drop a PDF or XLSX file here, or <span class="text-accent font-medium">click to browse</span></p>
-        <p class="text-xs text-secondary mt-1">Max 20MB</p>
-        <input type="file" id="tt-file-input" class="hidden" accept=".pdf,.xlsx">
-      </div>
-      <div id="tt-upload-preview" class="hidden mt-4"></div>
-      <button id="tt-upload-btn" class="btn btn-primary mt-4 hidden">Upload Timetable</button>
-    </div>
+      <div id="tt-upload-panel" class="hidden card p-6">
+        <h3 class="font-semibold text-primary mb-4">Upload Timetable File</h3>
+        <div id="tt-dropzone" class="border-2 border-dashed border-neutral-200 rounded-xl p-12 text-center cursor-pointer hover:border-accent transition-colors">
+          <svg class="mx-auto mb-3 text-secondary" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <p class="text-secondary text-sm">Drop a PDF or XLSX file here, or <span class="text-accent font-medium">click to browse</span></p>
+          <p class="text-xs text-secondary mt-1">Max 20MB</p>
+          <input type="file" id="tt-file-input" class="hidden" accept=".pdf,.xlsx">
+        </div>
+        <div id="tt-upload-preview" class="hidden mt-4"></div>
+        <button id="tt-upload-btn" class="btn btn-primary mt-4 hidden">Upload Timetable</button>
+      </div>` : ''}
     <div id="tt-history" class="mt-6"></div>
   `;
 
   await loadFilters();
-  setupTabs();
-  setupDropzone();
-  buildGrid();
+
+  if (canManage) {
+    setupTabs();
+    setupDropzone();
+    buildGrid();
+    document.getElementById('tt-save-btn').addEventListener('click', saveTimetable);
+    document.getElementById('tt-clear-btn').addEventListener('click', buildGrid);
+  }
 
   document.getElementById('tt-session').addEventListener('change', onSessionChange);
   document.getElementById('tt-term').addEventListener('change', loadHistory);
   document.getElementById('tt-division').addEventListener('change', loadHistory);
   document.getElementById('tt-class').addEventListener('change', loadHistory);
-  document.getElementById('tt-save-btn').addEventListener('click', saveTimetable);
-  document.getElementById('tt-clear-btn').addEventListener('click', buildGrid);
 }
 
 async function loadFilters() {
