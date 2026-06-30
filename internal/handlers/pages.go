@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"time"
 
+	"school-platform/internal/auth"
+	"school-platform/internal/config"
 	"school-platform/internal/middleware"
 	"school-platform/internal/models"
 
@@ -66,11 +68,12 @@ type PageData struct {
 
 // PagesHandler serves all server-rendered HTML pages.
 type PagesHandler struct {
-	db *gorm.DB
+	db  *gorm.DB
+	cfg *config.Config
 }
 
-func NewPagesHandler(db *gorm.DB) *PagesHandler {
-	return &PagesHandler{db: db}
+func NewPagesHandler(db *gorm.DB, cfg *config.Config) *PagesHandler {
+	return &PagesHandler{db: db, cfg: cfg}
 }
 
 // buildPageData loads school record + admission window + stats from DB.
@@ -238,7 +241,45 @@ func portalTemplateForRole(role models.Role) (string, string) {
 	}
 }
 
-// ServePortal reads the user's role from JWT claims and serves the matching
+// resolvePortalClaims figures out who is making this request.
+//
+// The /portal/* routes are server-rendered HTML pages and are intentionally
+// NOT wrapped in middleware.Authenticate (an unauthenticated visit must still
+// return the HTML shell so client-side JS can redirect to /login — Authenticate
+// would instead short-circuit with a raw JSON 401). That means
+// middleware.GetClaims(r) is always nil here. We parse the access token
+// directly so the correct role-specific template (owner, admin, teacher, …)
+// is served instead of silently falling back to the student template for
+// every signed-in user, regardless of role.
+func (h *PagesHandler) resolvePortalClaims(r *http.Request) *auth.Claims {
+	// Prefer claims already in context, in case Authenticate is ever added
+	// to this route group in the future.
+	if claims := middleware.GetClaims(r); claims != nil {
+		return claims
+	}
+
+	if h.cfg == nil {
+		return nil
+	}
+
+	tokenStr, err := auth.GetAccessTokenFromRequest(r)
+	if err != nil {
+		return nil
+	}
+
+	claims, err := auth.ParseAccessToken(tokenStr, h.cfg)
+	if err != nil {
+		// Access token may be expired; the client will hit /api/users/me,
+		// which DOES run through Authenticate and will transparently refresh
+		// it. We don't attempt a refresh here since we can't reliably set
+		// cookies once the body may already be streaming.
+		return nil
+	}
+
+	return claims
+}
+
+// ServePortal reads the user's role from the JWT cookie and serves the matching
 // role-specific portal template. Each template embeds only the nav sections
 // that role is permitted to access, enforcing RBAC at the HTML delivery layer.
 func (h *PagesHandler) ServePortal(w http.ResponseWriter, r *http.Request) {
@@ -247,8 +288,7 @@ func (h *PagesHandler) ServePortal(w http.ResponseWriter, r *http.Request) {
 	tmplPath := "web/templates/portal/portal-student.html"
 	data.Title = "Portal"
 
-	claims := middleware.GetClaims(r)
-	if claims != nil {
+	if claims := h.resolvePortalClaims(r); claims != nil {
 		path, title := portalTemplateForRole(claims.Role)
 		tmplPath = path
 		data.Title = title

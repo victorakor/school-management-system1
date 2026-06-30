@@ -97,7 +97,7 @@ func main() {
 	studentsHandler := handlers.NewStudentsHandler(db, cfg)
 	announcementsHandler := handlers.NewAnnouncementsHandler(db, cfg)
 	documentsHandler := handlers.NewDocumentsHandler(db, cfg)
-	pagesHandler := handlers.NewPagesHandler(db)
+	pagesHandler := handlers.NewPagesHandler(db, cfg)
 	auditHandler := handlers.NewAuditHandler(db)
 
 	// ─── Router ───────────────────────────────────────────────────────────────
