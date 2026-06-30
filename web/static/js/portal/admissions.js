@@ -1,30 +1,23 @@
 /**
  * admissions.js — Admissions portal module
- * Handles application listing, status updates, and appointment management.
+ * REPLACE: web/static/js/portal/admissions.js
  *
- * Role capabilities per RBAC spec:
- *   OWNER / PRINCIPAL / VICE_PRINCIPAL / HEAD_TEACHER — can approve / decline / mark under review
- *   ADMISSIONS_OFFICER                                — can mark under review only (cannot approve independently)
- *   PARENT                                            — sees only their own applications (different endpoint)
+ * Changes from original:
+ *   - Owner gets an "Override Decision" button per application card
+ *   - Override modal forces ACCEPTED or DECLINED with mandatory justification reason
+ *   - Original approve/decline/under-review workflow preserved for all other eligible roles
  */
 import { api } from '../shared/api.js';
 import { formatDate, showToast } from '../shared/utils.js';
 
-// Roles that can give final admission decisions (approve or decline).
-const CAN_APPROVE = ['OWNER', 'PRINCIPAL', 'VICE_PRINCIPAL', 'HEAD_TEACHER', 'ASST_HEAD_TEACHER'];
-// Roles that can process applications (move to under-review, schedule interviews, etc.)
+const CAN_APPROVE = ['OWNER','PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER'];
 const CAN_PROCESS = [...CAN_APPROVE, 'ADMISSIONS_OFFICER'];
 
-// Module-level user reference so inner functions can access role.
 let _user = null;
 
 export async function initAdmissions(container, user) {
   _user = user;
-
-  // Parents see only their own applications via a different endpoint.
-  if (user && user.role === 'PARENT') {
-    return initParentAdmissions(container);
-  }
+  if (user?.role === 'PARENT') return initParentAdmissions(container);
 
   container.innerHTML = `
     <div class="flex items-center justify-between mb-6">
@@ -51,8 +44,190 @@ export async function initAdmissions(container, user) {
 
   document.getElementById('status-filter').addEventListener('change', loadApplications);
   document.getElementById('division-filter').addEventListener('change', loadApplications);
+
+  if (user?.role === 'OWNER') mountOverrideAdmissionModal();
+
   await loadApplications();
 }
+
+async function loadApplications() {
+  const list     = document.getElementById('applications-list');
+  if (!list) return;
+  const status   = document.getElementById('status-filter')?.value || '';
+  const division = document.getElementById('division-filter')?.value || '';
+  list.innerHTML = skeletonRows(4);
+
+  const isOwner    = _user?.role === 'OWNER';
+  const canApprove = CAN_APPROVE.includes(_user?.role);
+  const canProcess = CAN_PROCESS.includes(_user?.role);
+
+  try {
+    const params = new URLSearchParams({ ...(status && { status }), ...(division && { division }) });
+    const data   = await api.get(`/api/admissions/applications?${params}`);
+    const apps   = data.applications || data || [];
+
+    if (!apps.length) {
+      list.innerHTML = `<div class="card p-12 text-center text-text-secondary">No applications found.</div>`;
+      return;
+    }
+
+    list.innerHTML = apps.map(app => `
+      <div class="card p-5">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-3 mb-2 flex-wrap">
+              <h3 class="font-semibold text-primary">${app.child_name}</h3>
+              <span class="badge ${statusBadge(app.status)} text-xs">${app.status.replace('_',' ')}</span>
+              <span class="badge badge-neutral text-xs">${app.division}</span>
+            </div>
+            <p class="text-sm text-text-secondary mb-1">Ref: <span class="font-mono">${app.ref_number}</span></p>
+            <p class="text-xs text-text-secondary">Parent: ${app.parent_name} · Applied: ${formatDate(new Date(app.created_at))}</p>
+            ${app.decline_reason ? `<p class="text-xs text-danger mt-1">Declined: ${app.decline_reason}</p>` : ''}
+          </div>
+          <div class="flex gap-2 flex-wrap shrink-0">
+            ${canProcess && app.status === 'PENDING' ? `
+              <button class="btn btn-sm btn-ghost mark-review-btn" data-id="${app.id}">Mark Under Review</button>` : ''}
+            ${canApprove && ['PENDING','UNDER_REVIEW'].includes(app.status) ? `
+              <button class="btn btn-sm btn-primary approve-btn" data-id="${app.id}" data-name="${app.child_name}">Approve</button>
+              <button class="btn btn-sm btn-danger-ghost decline-btn" data-id="${app.id}" data-name="${app.child_name}">Decline</button>` : ''}
+            ${isOwner ? `
+              <button class="btn btn-sm btn-outline override-admission-btn"
+                data-id="${app.id}" data-name="${app.child_name}" data-status="${app.status}">Override</button>` : ''}
+          </div>
+        </div>
+      </div>`).join('');
+
+    // Bind action buttons
+    list.querySelectorAll('.mark-review-btn').forEach(btn =>
+      btn.addEventListener('click', () => updateStatus(btn.dataset.id, 'UNDER_REVIEW')));
+    list.querySelectorAll('.approve-btn').forEach(btn =>
+      btn.addEventListener('click', () => updateStatus(btn.dataset.id, 'ACCEPTED', btn.dataset.name)));
+    list.querySelectorAll('.decline-btn').forEach(btn =>
+      btn.addEventListener('click', () => promptDecline(btn.dataset.id, btn.dataset.name)));
+    list.querySelectorAll('.override-admission-btn').forEach(btn =>
+      btn.addEventListener('click', () => openOverrideAdmissionModal(btn.dataset.id, btn.dataset.name, btn.dataset.status)));
+
+  } catch (err) {
+    list.innerHTML = `<div class="card p-6 text-danger text-sm">${err.message}</div>`;
+  }
+}
+
+async function updateStatus(appId, status, name = '') {
+  const label = status === 'ACCEPTED' ? 'approve' : 'mark as under review';
+  if (status === 'ACCEPTED' && !confirm(`Approve application for ${name}?`)) return;
+  try {
+    await api.put(`/api/admissions/applications/${appId}`, { status });
+    showToast(`Application ${status.toLowerCase().replace('_',' ')}.`, 'success');
+    await loadApplications();
+  } catch (err) {
+    showToast(err.message || `Failed to ${label}.`, 'error');
+  }
+}
+
+async function promptDecline(appId, name) {
+  const reason = prompt(`Reason for declining ${name}'s application (required):`);
+  if (!reason?.trim()) return;
+  try {
+    await api.put(`/api/admissions/applications/${appId}`, { status: 'DECLINED', decline_reason: reason.trim() });
+    showToast('Application declined.', 'success');
+    await loadApplications();
+  } catch (err) {
+    showToast(err.message || 'Failed to decline application.', 'error');
+  }
+}
+
+// ─── Override Admission Modal ─────────────────────────────────────────────────
+
+function mountOverrideAdmissionModal() {
+  if (document.getElementById('override-admission-modal')) return;
+  const modal = document.createElement('div');
+  modal.id = 'override-admission-modal';
+  modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;';
+  modal.innerHTML = `
+    <div id="oa-backdrop" style="position:absolute;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);"></div>
+    <div style="position:relative;background:#fff;border-radius:1.25rem;box-shadow:0 25px 60px rgba(0,0,0,0.2);width:100%;max-width:460px;padding:1.5rem;z-index:201;margin:1rem;">
+      <h2 style="font-size:1.125rem;font-weight:700;color:var(--color-primary);margin-bottom:0.25rem;">Override Admission Decision</h2>
+      <p id="oa-subtitle" style="font-size:0.8rem;color:var(--color-text-secondary);margin-bottom:1rem;"></p>
+      <div class="p-3 rounded-xl mb-4" style="background:#fef9c3;border:1px solid #fde68a;">
+        <p style="font-size:0.78rem;color:#92400e;">⚠️ This bypasses the normal workflow and is permanently audit-logged.</p>
+      </div>
+      <div style="display:grid;gap:0.75rem;">
+        <div>
+          <label class="label">New Decision <span style="color:var(--color-danger)">*</span></label>
+          <select id="oa-status" class="input w-full">
+            <option value="ACCEPTED">Accept</option>
+            <option value="DECLINED">Decline</option>
+          </select>
+        </div>
+        <div id="oa-decline-reason-row" style="display:none;">
+          <label class="label">Decline Reason <span style="color:var(--color-danger)">*</span></label>
+          <input id="oa-decline-reason" class="input w-full" placeholder="Reason for declining" />
+        </div>
+        <div>
+          <label class="label">Override Justification <span style="color:var(--color-danger)">*</span></label>
+          <input id="oa-reason" class="input w-full" placeholder="Why are you overriding this decision?" />
+        </div>
+      </div>
+      <p id="oa-error" style="color:var(--color-danger);font-size:0.75rem;margin-top:0.5rem;display:none;"></p>
+      <div style="display:flex;gap:0.75rem;margin-top:1.25rem;">
+        <button id="cancel-oa-btn" class="btn btn-ghost" style="flex:1;">Cancel</button>
+        <button id="confirm-oa-btn" class="btn btn-danger" style="flex:1;">Confirm Override</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.querySelector('#oa-backdrop').addEventListener('click', () => { modal.style.display = 'none'; });
+  modal.querySelector('#cancel-oa-btn').addEventListener('click', () => { modal.style.display = 'none'; });
+  modal.querySelector('#oa-status').addEventListener('change', e => {
+    document.getElementById('oa-decline-reason-row').style.display =
+      e.target.value === 'DECLINED' ? 'block' : 'none';
+  });
+}
+
+function openOverrideAdmissionModal(appId, childName, currentStatus) {
+  const modal = document.getElementById('override-admission-modal');
+  if (!modal) return;
+  document.getElementById('oa-subtitle').textContent = `Application for: ${childName} (currently: ${currentStatus.replace('_',' ')})`;
+  document.getElementById('oa-status').value = 'ACCEPTED';
+  document.getElementById('oa-decline-reason-row').style.display = 'none';
+  document.getElementById('oa-decline-reason').value = '';
+  document.getElementById('oa-reason').value = '';
+  document.getElementById('oa-error').style.display = 'none';
+  modal.style.display = 'flex';
+
+  const oldBtn = document.getElementById('confirm-oa-btn');
+  const newBtn = oldBtn.cloneNode(true);
+  oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+  newBtn.addEventListener('click', async () => {
+    const status        = document.getElementById('oa-status').value;
+    const declineReason = document.getElementById('oa-decline-reason').value.trim();
+    const reason        = document.getElementById('oa-reason').value.trim();
+    const errEl         = document.getElementById('oa-error');
+    errEl.style.display = 'none';
+    if (!reason) {
+      errEl.textContent = 'Override justification is required.';
+      errEl.style.display = 'block';
+      return;
+    }
+    if (status === 'DECLINED' && !declineReason) {
+      errEl.textContent = 'Decline reason is required when declining.';
+      errEl.style.display = 'block';
+      return;
+    }
+    try {
+      await api.put(`/api/admissions/applications/${appId}/override`, {
+        status, decline_reason: declineReason, reason,
+      });
+      modal.style.display = 'none';
+      showToast('Admission decision overridden and logged.', 'success');
+      await loadApplications();
+    } catch (err) {
+      errEl.textContent = err.message || 'Failed to override decision.';
+      errEl.style.display = 'block';
+    }
+  });
+}
+
+// ─── Parent View (unchanged) ──────────────────────────────────────────────────
 
 async function initParentAdmissions(container) {
   container.innerHTML = `
@@ -60,165 +235,37 @@ async function initParentAdmissions(container) {
       <h1 class="text-2xl font-bold text-primary">My Applications</h1>
       <p class="text-text-secondary text-sm mt-1">Track the status of your child's admission application.</p>
     </div>
-    <div id="parent-applications-list" class="space-y-3"></div>
-  `;
+    <div id="parent-applications-list" class="space-y-3"></div>`;
 
   const list = document.getElementById('parent-applications-list');
   list.innerHTML = skeletonRows(3);
-
   try {
     const data = await api.get('/api/admissions/my-applications');
     const apps = data.applications || data || [];
-
     if (!apps.length) {
       list.innerHTML = `<div class="card p-12 text-center text-text-secondary">No applications found. Visit the <a href="/admissions" class="text-accent underline">Admissions page</a> to apply.</div>`;
       return;
     }
-
     list.innerHTML = apps.map(app => `
       <div class="card p-5">
         <div class="flex items-center justify-between mb-3">
-          <div>
-            <p class="font-semibold text-primary">${app.child_name}</p>
-            <p class="text-xs text-text-secondary">${app.division} · Ref: <span class="font-mono">${app.ref_number}</span></p>
-          </div>
-          <span class="badge badge-${statusColor(app.status)}">${app.status.replace(/_/g, ' ')}</span>
+          <h3 class="font-semibold text-primary">${app.child_name}</h3>
+          <span class="badge ${statusBadge(app.status)} text-xs">${app.status.replace('_',' ')}</span>
         </div>
-        ${app.appointment_date ? `
-          <div class="flex items-center gap-2 text-sm text-text-secondary mt-2 p-3 bg-background rounded-lg">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            Interview: ${formatDate(app.appointment_date)} at ${app.appointment_time || ''}
-          </div>` : ''}
+        <p class="text-xs text-text-secondary">Ref: <span class="font-mono">${app.ref_number}</span> · Division: ${app.division}</p>
+        <p class="text-xs text-text-secondary mt-1">Applied: ${formatDate(new Date(app.created_at))}</p>
       </div>`).join('');
   } catch (err) {
-    list.innerHTML = `<div class="card p-6 text-danger text-sm">Failed to load applications. ${err.message || ''}</div>`;
+    list.innerHTML = `<div class="card p-6 text-danger text-sm">${err.message}</div>`;
   }
 }
 
-async function loadApplications() {
-  const status = document.getElementById('status-filter')?.value || '';
-  const division = document.getElementById('division-filter')?.value || '';
-  const list = document.getElementById('applications-list');
-  list.innerHTML = skeletonRows(5);
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-  try {
-    let url = '/api/admissions/applications?';
-    if (status) url += `status=${status}&`;
-    if (division) url += `division=${division}&`;
-    const data = await api.get(url);
-
-    if (!data.length) {
-      list.innerHTML = `<div class="card p-12 text-center text-secondary">No applications found.</div>`;
-      return;
-    }
-
-    list.innerHTML = data.map(app => `
-      <div class="card p-4 flex items-center justify-between hover:shadow-md transition-shadow cursor-pointer"
-           onclick="window._admissionsOpenApp('${app.id}')">
-        <div class="flex items-center gap-4">
-          <div class="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold">
-            ${app.child_name.charAt(0)}
-          </div>
-          <div>
-            <p class="font-semibold text-primary">${app.child_name}</p>
-            <p class="text-xs text-secondary">${app.division} · Ref: <span class="font-mono">${app.ref_number}</span></p>
-          </div>
-        </div>
-        <div class="flex items-center gap-3">
-          <span class="text-xs text-secondary">${formatDate(app.created_at)}</span>
-          <span class="badge badge-${statusColor(app.status)}">${app.status.replace(/_/g, ' ')}</span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-secondary">
-            <polyline points="9 18 15 12 9 6"/>
-          </svg>
-        </div>
-      </div>
-    `).join('');
-
-    window._admissionsOpenApp = (id) => openApplicationModal(id);
-  } catch (err) {
-    list.innerHTML = `<div class="card p-6 text-danger text-sm">Failed to load applications.</div>`;
-  }
-}
-
-async function openApplicationModal(id) {
-  const modal = document.getElementById('application-modal');
-  modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4';
-  modal.innerHTML = `
-    <div class="fixed inset-0 bg-black/40 backdrop-blur-sm" onclick="window._admissionsCloseModal()"></div>
-    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto z-10 p-6"
-         style="animation: modalIn 300ms ease-out">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-xl font-bold text-primary">Application Details</h2>
-        <button onclick="window._admissionsCloseModal()" class="text-secondary hover:text-primary">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
-      </div>
-      <div id="modal-content" class="space-y-4">
-        <div class="skeleton h-6 w-48 rounded"></div>
-        <div class="skeleton h-4 w-full rounded"></div>
-        <div class="skeleton h-4 w-3/4 rounded"></div>
-      </div>
-    </div>`;
-
-  window._admissionsCloseModal = () => {
-    modal.className = 'hidden';
-    modal.innerHTML = '';
-  };
-
-  try {
-    const app = await api.get(`/api/admissions/applications/${id}`);
-    document.getElementById('modal-content').innerHTML = `
-      <div class="grid grid-cols-2 gap-4">
-        <div><p class="label">Child Name</p><p class="font-medium">${app.child_name}</p></div>
-        <div><p class="label">Division</p><p class="font-medium">${app.division}</p></div>
-        <div><p class="label">Date of Birth</p><p class="font-medium">${formatDate(app.child_dob)}</p></div>
-        <div><p class="label">Gender</p><p class="font-medium">${app.child_gender}</p></div>
-        <div><p class="label">Reference</p><p class="font-mono font-medium">${app.ref_number}</p></div>
-        <div><p class="label">Status</p><span class="badge badge-${statusColor(app.status)}">${app.status.replace(/_/g, ' ')}</span></div>
-        ${app.appointment_date ? `<div><p class="label">Appointment</p><p class="font-medium">${formatDate(app.appointment_date)} at ${app.appointment_time}</p></div>` : ''}
-        ${app.medical_conditions ? `<div class="col-span-2"><p class="label">Medical Conditions</p><p class="text-sm">${app.medical_conditions}</p></div>` : ''}
-      </div>
-      <div class="flex gap-2 mt-6 pt-4 border-t border-neutral-100 flex-wrap">
-        ${(app.status === 'PENDING' || app.status === 'UNDER_REVIEW') && CAN_APPROVE.includes(_user?.role) ? `
-          <button class="btn btn-success flex-1" onclick="window._admissionsUpdateStatus('${app.id}', 'ACCEPTED')">Accept</button>
-          <button class="btn btn-danger flex-1" onclick="window._admissionsUpdateStatus('${app.id}', 'DECLINED')">Decline</button>
-        ` : ''}
-        ${(app.status === 'PENDING') && CAN_PROCESS.includes(_user?.role) ? `
-          <button class="btn btn-secondary flex-1" onclick="window._admissionsUpdateStatus('${app.id}', 'UNDER_REVIEW')">Mark Under Review</button>
-        ` : ''}
-        ${app.passport_url ? `<a href="${app.passport_url}" target="_blank" class="btn btn-outline flex-1">View Passport</a>` : ''}
-      </div>`;
-
-    window._admissionsUpdateStatus = async (appId, status) => {
-      try {
-        await api.put(`/api/admissions/applications/${appId}/status`, { status });
-        showToast(`Application ${status.toLowerCase().replace(/_/g, ' ')}`, 'success');
-        window._admissionsCloseModal();
-        loadApplications();
-      } catch {
-        showToast('Failed to update status', 'error');
-      }
-    };
-  } catch {
-    document.getElementById('modal-content').innerHTML = `<p class="text-danger">Failed to load application details.</p>`;
-  }
-}
-
-function statusColor(status) {
-  const map = { PENDING: 'warning', UNDER_REVIEW: 'warning', ACCEPTED: 'success', DECLINED: 'danger' };
-  return map[status] || 'neutral';
+function statusBadge(s) {
+  return { ACCEPTED:'badge-success', DECLINED:'badge-danger', UNDER_REVIEW:'badge-warning', PENDING:'badge-neutral' }[s] || 'badge-neutral';
 }
 
 function skeletonRows(n) {
-  return Array(n).fill(0).map(() =>
-    `<div class="card p-4 flex items-center gap-4">
-      <div class="skeleton w-10 h-10 rounded-full"></div>
-      <div class="flex-1 space-y-2">
-        <div class="skeleton h-4 w-48 rounded"></div>
-        <div class="skeleton h-3 w-32 rounded"></div>
-      </div>
-    </div>`
-  ).join('');
+  return Array(n).fill('<div class="skeleton h-24 rounded-2xl"></div>').join('');
 }

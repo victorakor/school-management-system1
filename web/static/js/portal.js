@@ -150,6 +150,7 @@ const SECTION_INIT_FN = {
   users:        'initUsers',
   settings:     'initSettings',
   notifications:'initNotificationsPage',
+  audit:        'initAudit',
 };
 
 async function loadSection(section) {
@@ -271,10 +272,11 @@ async function renderQuizzesList(container, user) {
               </div>
             </div>
             ${canStart ? `<button class="btn btn-primary text-sm start-quiz-btn" data-quiz-id="${q.id}">Start</button>` : ''}
-            ${canManage && q.status === 'DRAFT' ? `<button class="btn btn-ghost text-sm">Edit</button>` : ''}
+            ${canManage ? renderQuizActions(q) : ''}
           </div>`;
       }).join('');
 
+      handleQuizListActions(list, user);
       list.querySelectorAll('.start-quiz-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
           const quizId = btn.dataset.quizId;
@@ -383,6 +385,7 @@ function getLucideIcon(name) {
     'dollar-sign': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
     'image': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>',
     'user-check': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>',
+    'shield': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
     'settings': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
   };
   return icons[name] || '';
@@ -390,3 +393,144 @@ function getLucideIcon(name) {
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 init();
+
+// ─── Quiz Action Helpers (Owner / Staff) ──────────────────────────────────────
+
+function renderQuizActions(quiz) {
+  const btns = [];
+  if (quiz.status === 'DRAFT')  btns.push(`<button class="btn btn-sm btn-primary publish-quiz-btn" data-id="${quiz.id}" data-title="${quiz.title}">Publish</button>`);
+  if (quiz.status === 'ACTIVE') btns.push(`<button class="btn btn-sm btn-danger-ghost close-quiz-btn" data-id="${quiz.id}" data-title="${quiz.title}">Close</button>`);
+  if (['ACTIVE','CLOSED'].includes(quiz.status)) {
+    btns.push(`<button class="btn btn-sm btn-ghost leaderboard-btn" data-id="${quiz.id}" data-title="${quiz.title}">Leaderboard</button>`);
+    btns.push(`<button class="btn btn-sm btn-ghost cheating-btn" data-id="${quiz.id}" data-title="${quiz.title}">Violations</button>`);
+  }
+  return btns.join('');
+}
+
+async function handleQuizListActions(container, user) {
+  container.querySelectorAll('.publish-quiz-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm(`Publish "${btn.dataset.title}"? It will become active immediately.`)) return;
+      try {
+        await api.post(`/api/quizzes/${btn.dataset.id}/publish`, {});
+        const { showToast } = await import('./shared/utils.js');
+        showToast('Quiz published.', 'success');
+        await renderQuizzesList(container, user);
+      } catch (err) {
+        const { showToast } = await import('./shared/utils.js');
+        showToast(err.message || 'Failed to publish quiz.', 'error');
+      }
+    });
+  });
+
+  container.querySelectorAll('.close-quiz-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm(`Close "${btn.dataset.title}"? No new attempts will be allowed.`)) return;
+      try {
+        await api.put(`/api/quizzes/${btn.dataset.id}/close`, {});
+        const { showToast } = await import('./shared/utils.js');
+        showToast('Quiz closed.', 'success');
+        await renderQuizzesList(container, user);
+      } catch (err) {
+        const { showToast } = await import('./shared/utils.js');
+        showToast(err.message || 'Failed to close quiz.', 'error');
+      }
+    });
+  });
+
+  container.querySelectorAll('.leaderboard-btn').forEach(btn => {
+    btn.addEventListener('click', () => showQuizLeaderboard(btn.dataset.id, btn.dataset.title, container));
+  });
+
+  container.querySelectorAll('.cheating-btn').forEach(btn => {
+    btn.addEventListener('click', () => showCheatingReport(btn.dataset.id, btn.dataset.title, container));
+  });
+}
+
+async function showQuizLeaderboard(quizId, title, container) {
+  const content = document.getElementById('portal-content');
+  if (!content) return;
+  content.innerHTML = `
+    <div class="flex items-center gap-3 mb-6">
+      <button id="back-to-quizzes" class="btn btn-ghost btn-sm">← Back</button>
+      <h1 class="text-2xl font-bold text-primary">Leaderboard — ${title}</h1>
+    </div>
+    <div id="leaderboard-content"><div class="card p-4 space-y-2">${Array(5).fill('<div class="skeleton h-10 rounded"></div>').join('')}</div></div>`;
+
+  document.getElementById('back-to-quizzes').addEventListener('click', () => {
+    renderQuizzesList(content, state.user);
+  });
+
+  try {
+    const data = await api.get(`/api/quizzes/${quizId}/leaderboard`);
+    const board = data.leaderboard || [];
+    const el = document.getElementById('leaderboard-content');
+    if (!board.length) {
+      el.innerHTML = `<div class="card p-12 text-center text-text-secondary">No submissions yet.</div>`;
+      return;
+    }
+    el.innerHTML = `
+      <div class="card overflow-hidden">
+        <table class="data-table w-full text-sm">
+          <thead><tr><th>Rank</th><th>Student</th><th class="text-right">Score</th><th>Submitted</th><th>Flag</th></tr></thead>
+          <tbody>
+            ${board.map(e => `
+              <tr>
+                <td class="font-bold text-primary">#${e.rank}</td>
+                <td class="font-medium">${e.student_name}</td>
+                <td class="text-right font-semibold">${e.score}</td>
+                <td class="text-xs text-text-secondary">${e.submitted_at ? new Date(e.submitted_at).toLocaleString() : '—'}</td>
+                <td>${e.is_flagged ? '<span class="badge badge-danger text-xs">⚠ Flagged</span>' : '<span class="badge badge-success text-xs">Clean</span>'}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch (err) {
+    document.getElementById('leaderboard-content').innerHTML = `<div class="card p-6 text-danger text-sm">${err.message}</div>`;
+  }
+}
+
+async function showCheatingReport(quizId, title, container) {
+  const content = document.getElementById('portal-content');
+  if (!content) return;
+  content.innerHTML = `
+    <div class="flex items-center gap-3 mb-6">
+      <button id="back-to-quizzes-cheat" class="btn btn-ghost btn-sm">← Back</button>
+      <h1 class="text-2xl font-bold text-primary">Violation Report — ${title}</h1>
+    </div>
+    <div id="cheat-content"><div class="card p-4 space-y-2">${Array(4).fill('<div class="skeleton h-10 rounded"></div>').join('')}</div></div>`;
+
+  document.getElementById('back-to-quizzes-cheat').addEventListener('click', () => {
+    renderQuizzesList(content, state.user);
+  });
+
+  try {
+    const data = await api.get(`/api/quizzes/${quizId}/cheating`);
+    const reports = data.reports || [];
+    const el = document.getElementById('cheat-content');
+    if (!reports.length) {
+      el.innerHTML = `<div class="card p-12 text-center text-success font-medium">No violations recorded for this quiz. ✓</div>`;
+      return;
+    }
+    el.innerHTML = `
+      <p class="text-sm text-text-secondary mb-3">${reports.length} flagged attempt(s)</p>
+      <div class="space-y-3">
+        ${reports.map(r => `
+          <div class="card p-4">
+            <div class="flex items-center justify-between mb-2">
+              <p class="font-semibold text-primary">${r.student_name}</p>
+              <div class="flex gap-2">
+                ${r.auto_submitted ? '<span class="badge badge-danger text-xs">Auto-submitted</span>' : ''}
+                <span class="badge badge-warning text-xs">Score: ${r.score}</span>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              ${(r.violations || []).map(v => `
+                <span class="badge badge-neutral text-xs font-mono">${typeof v === 'object' ? (v.type || JSON.stringify(v)) : v}</span>`).join('')}
+            </div>
+          </div>`).join('')}
+      </div>`;
+  } catch (err) {
+    document.getElementById('cheat-content').innerHTML = `<div class="card p-6 text-danger text-sm">${err.message}</div>`;
+  }
+}

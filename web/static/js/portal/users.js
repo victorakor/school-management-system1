@@ -1,39 +1,29 @@
 /**
  * users.js — Staff / user management module
- * Updated to include all 15 roles from the LEAPS RBAC specification.
+ * REPLACE: web/static/js/portal/users.js
+ *
+ * Changes from original:
+ *   - Owner table now shows Suspend / Unlock buttons per user (replaces Deactivate)
+ *   - Owner table shows Reset Password action per user
+ *   - Suspend and Unlock call the new /api/users/:id/suspend and /api/users/:id/unlock endpoints
+ *   - Reset Password opens a modal where the owner sets the new password directly
  */
 import { api } from '../shared/api.js';
 import { showToast } from '../shared/utils.js';
 
-// All roles that can be created via the staff management screen.
-// Students/Pupils are created via admissions. Parents self-register.
-// OWNER is seeded at setup and never created here.
 const STAFF_ROLES = [
-  'PRINCIPAL',
-  'VICE_PRINCIPAL',
-  'HEAD_TEACHER',
-  'ASST_HEAD_TEACHER',
-  'EXAM_OFFICER',
-  'ADMISSIONS_OFFICER',
-  'BURSAR',
-  'TEACHER',
-  'CLASS_TEACHER',
-  'BLOG_MANAGER',
-  'ICT_ADMIN',
+  'PRINCIPAL','VICE_PRINCIPAL','HEAD_TEACHER','ASST_HEAD_TEACHER',
+  'EXAM_OFFICER','ADMISSIONS_OFFICER','BURSAR','TEACHER','CLASS_TEACHER',
+  'BLOG_MANAGER','ICT_ADMIN',
 ];
 
-// Roles the filter dropdown shows (includes non-staff so the owner can
-// search for any user type by role).
 const ALL_FILTERABLE_ROLES = [
-  ...STAFF_ROLES,
-  'STUDENT',
-  'PUPIL',
-  'PARENT',
+  ...STAFF_ROLES, 'STUDENT', 'PUPIL', 'PARENT',
 ];
 
 export async function initUsers(container, user) {
-  // Only OWNER can create staff accounts. PRINCIPAL/HEAD/ICT_ADMIN can view list.
   const canCreate = user && user.role === 'OWNER';
+  const isOwner   = canCreate;
 
   container.innerHTML = `
     <div class="flex items-center justify-between mb-6">
@@ -49,87 +39,158 @@ export async function initUsers(container, user) {
     <div id="users-list"></div>
   `;
 
-  // Only wire up the add-user modal for OWNER
   if (canCreate) {
-    let modal = document.getElementById('add-user-modal');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'add-user-modal';
-    modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;';
-    modal.innerHTML = `
-      <div id="modal-backdrop" style="position:absolute;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);"></div>
-      <div style="position:relative;background:#fff;border-radius:1.25rem;box-shadow:0 25px 60px rgba(0,0,0,0.2);width:100%;max-width:480px;padding:1.5rem;z-index:201;margin:1rem;">
-        <h2 style="font-size:1.125rem;font-weight:700;color:var(--color-primary);margin-bottom:1rem;">Add Staff Member</h2>
-        <div style="display:grid;gap:0.75rem;">
-          <div><label class="label">Full Name</label><input id="new-name" class="input w-full" placeholder="Full name" /></div>
-          <div><label class="label">Email</label><input id="new-email" type="email" class="input w-full" placeholder="Email address" /></div>
-          <div><label class="label">Phone</label><input id="new-phone" class="input w-full" placeholder="+234…" /></div>
-          <div><label class="label">Role</label>
-            <select id="new-role" class="input w-full">
-              ${STAFF_ROLES.map(r => `<option value="${r}">${formatRole(r)}</option>`).join('')}
-            </select>
-          </div>
-          <div id="division-row"><label class="label">Division Scope</label>
-            <select id="new-division" class="input w-full">
-              <option value="ALL">All Divisions</option>
-              <option value="NURSERY">Nursery</option>
-              <option value="PRIMARY">Primary</option>
-              <option value="SECONDARY">Secondary</option>
-            </select>
-            <p id="division-hint" style="font-size:0.72rem;color:var(--color-text-secondary);margin-top:0.25rem;"></p>
-          </div>
-          <div><label class="label">Temporary Password</label><input id="new-password" type="password" class="input w-full" placeholder="Min. 8 characters" /></div>
-        </div>
-        <div style="display:flex;gap:0.75rem;margin-top:1.25rem;">
-          <button id="cancel-add-btn" class="btn btn-ghost" style="flex:1;">Cancel</button>
-          <button id="confirm-add-btn" class="btn btn-primary" style="flex:1;">Create Account</button>
-        </div>
-        <p id="add-error" style="color:var(--color-danger);font-size:0.75rem;margin-top:0.5rem;display:none;"></p>
-      </div>
-    `;
-    document.body.appendChild(modal);
-    }
-
-    const openModal  = () => { modal.style.display = 'flex'; updateDivisionHint(); };
-    const closeModal = () => { modal.style.display = 'none'; clearForm(); };
-
-    document.getElementById('add-user-btn').addEventListener('click', openModal);
-    modal.querySelector('#cancel-add-btn').addEventListener('click', closeModal);
-    modal.querySelector('#modal-backdrop').addEventListener('click', closeModal);
-    modal.querySelector('#confirm-add-btn').addEventListener('click', () => createUser(closeModal));
-
-    // Update division hint when role changes
-    modal.querySelector('#new-role').addEventListener('change', updateDivisionHint);
-
-    document.addEventListener('keydown', function escHandler(e) {
-      if (e.key === 'Escape' && modal.style.display === 'flex') closeModal();
-    });
-  } // end canCreate
+    mountAddModal();
+  }
 
   document.getElementById('role-filter').addEventListener('change', loadUsers);
   await loadUsers();
 }
 
-// Show a contextual hint about which division scope makes sense for the role.
-function updateDivisionHint() {
-  const role = document.getElementById('new-role')?.value;
-  const hint = document.getElementById('division-hint');
-  if (!hint) return;
-  const hints = {
-    PRINCIPAL:          'Secondary only — set to SECONDARY',
-    VICE_PRINCIPAL:     'Secondary only — set to SECONDARY',
-    HEAD_TEACHER:       'Nursery/Primary — set to PRIMARY or NURSERY',
-    ASST_HEAD_TEACHER:  'Nursery/Primary — set to PRIMARY or NURSERY',
-    BURSAR:             'Set to the division this bursar covers',
-    EXAM_OFFICER:       'Usually ALL unless scoped to one division',
-    ADMISSIONS_OFFICER: 'Usually ALL to handle all divisions',
-    BLOG_MANAGER:       'Leave as ALL',
-    ICT_ADMIN:          'Leave as ALL',
-    TEACHER:            'Set to the division this teacher teaches in',
-    CLASS_TEACHER:      'Set to the division this class teacher is in',
-  };
-  hint.textContent = hints[role] || '';
+// ─── Add Staff Modal ──────────────────────────────────────────────────────────
+
+function mountAddModal() {
+  let modal = document.getElementById('add-user-modal');
+  if (modal) return; // already mounted
+
+  modal = document.createElement('div');
+  modal.id = 'add-user-modal';
+  modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;';
+  modal.innerHTML = `
+    <div id="add-modal-backdrop" style="position:absolute;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);"></div>
+    <div style="position:relative;background:#fff;border-radius:1.25rem;box-shadow:0 25px 60px rgba(0,0,0,0.2);width:100%;max-width:480px;padding:1.5rem;z-index:201;margin:1rem;">
+      <h2 style="font-size:1.125rem;font-weight:700;color:var(--color-primary);margin-bottom:1rem;">Add Staff Member</h2>
+      <div style="display:grid;gap:0.75rem;">
+        <div><label class="label">Full Name</label><input id="new-name" class="input w-full" placeholder="Full name" /></div>
+        <div><label class="label">Email</label><input id="new-email" type="email" class="input w-full" placeholder="Email address" /></div>
+        <div><label class="label">Phone</label><input id="new-phone" class="input w-full" placeholder="+234…" /></div>
+        <div><label class="label">Role</label>
+          <select id="new-role" class="input w-full">
+            ${STAFF_ROLES.map(r => `<option value="${r}">${formatRole(r)}</option>`).join('')}
+          </select>
+        </div>
+        <div id="division-row"><label class="label">Division Scope</label>
+          <select id="new-division" class="input w-full">
+            <option value="ALL">All Divisions</option>
+            <option value="NURSERY">Nursery</option>
+            <option value="PRIMARY">Primary</option>
+            <option value="SECONDARY">Secondary</option>
+          </select>
+          <p id="division-hint" style="font-size:0.72rem;color:var(--color-text-secondary);margin-top:0.25rem;"></p>
+        </div>
+        <div><label class="label">Temporary Password</label><input id="new-password" type="password" class="input w-full" placeholder="Min. 8 characters" /></div>
+      </div>
+      <div style="display:flex;gap:0.75rem;margin-top:1.25rem;">
+        <button id="cancel-add-btn" class="btn btn-ghost" style="flex:1;">Cancel</button>
+        <button id="confirm-add-btn" class="btn btn-primary" style="flex:1;">Create Account</button>
+      </div>
+      <p id="add-error" style="color:var(--color-danger);font-size:0.75rem;margin-top:0.5rem;display:none;"></p>
+    </div>`;
+  document.body.appendChild(modal);
+
+  const openModal  = () => { modal.style.display = 'flex'; updateDivisionHint(); };
+  const closeModal = () => { modal.style.display = 'none'; clearAddForm(); };
+
+  document.getElementById('add-user-btn').addEventListener('click', openModal);
+  modal.querySelector('#cancel-add-btn').addEventListener('click', closeModal);
+  modal.querySelector('#add-modal-backdrop').addEventListener('click', closeModal);
+  modal.querySelector('#confirm-add-btn').addEventListener('click', () => createUser(closeModal));
+  modal.querySelector('#new-role').addEventListener('change', updateDivisionHint);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && modal.style.display === 'flex') closeModal();
+  });
 }
+
+// ─── Reset Password Modal ─────────────────────────────────────────────────────
+
+function openResetPasswordModal(userId, userName) {
+  let modal = document.getElementById('reset-pw-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'reset-pw-modal';
+    modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+      <div id="reset-pw-backdrop" style="position:absolute;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);"></div>
+      <div style="position:relative;background:#fff;border-radius:1.25rem;box-shadow:0 25px 60px rgba(0,0,0,0.2);width:100%;max-width:420px;padding:1.5rem;z-index:201;margin:1rem;">
+        <h2 style="font-size:1.125rem;font-weight:700;color:var(--color-primary);margin-bottom:0.25rem;">Reset Password</h2>
+        <p id="reset-pw-subtitle" style="font-size:0.8rem;color:var(--color-text-secondary);margin-bottom:1rem;"></p>
+        <div style="display:grid;gap:0.75rem;">
+          <div><label class="label">New Password</label><input id="reset-pw-new" type="password" class="input w-full" placeholder="Min. 8 characters" /></div>
+          <div><label class="label">Confirm Password</label><input id="reset-pw-confirm" type="password" class="input w-full" placeholder="Repeat password" /></div>
+        </div>
+        <p id="reset-pw-error" style="color:var(--color-danger);font-size:0.75rem;margin-top:0.5rem;display:none;"></p>
+        <div style="display:flex;gap:0.75rem;margin-top:1.25rem;">
+          <button id="cancel-reset-pw-btn" class="btn btn-ghost" style="flex:1;">Cancel</button>
+          <button id="confirm-reset-pw-btn" class="btn btn-primary" style="flex:1;">Reset Password</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('#reset-pw-backdrop').addEventListener('click', () => { modal.style.display = 'none'; });
+    modal.querySelector('#cancel-reset-pw-btn').addEventListener('click', () => { modal.style.display = 'none'; });
+  }
+
+  document.getElementById('reset-pw-subtitle').textContent = `Setting a new password for ${userName}`;
+  document.getElementById('reset-pw-new').value = '';
+  document.getElementById('reset-pw-confirm').value = '';
+  document.getElementById('reset-pw-error').style.display = 'none';
+  modal.style.display = 'flex';
+
+  // Replace confirm button to avoid stale listeners
+  const oldBtn = document.getElementById('confirm-reset-pw-btn');
+  const newBtn = oldBtn.cloneNode(true);
+  oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+  newBtn.addEventListener('click', async () => {
+    const pw  = document.getElementById('reset-pw-new').value;
+    const pw2 = document.getElementById('reset-pw-confirm').value;
+    const errEl = document.getElementById('reset-pw-error');
+    errEl.style.display = 'none';
+    if (pw.length < 8) {
+      errEl.textContent = 'Password must be at least 8 characters.';
+      errEl.style.display = 'block';
+      return;
+    }
+    if (pw !== pw2) {
+      errEl.textContent = 'Passwords do not match.';
+      errEl.style.display = 'block';
+      return;
+    }
+    try {
+      await api.post(`/api/users/${userId}/reset-password`, { new_password: pw });
+      modal.style.display = 'none';
+      showToast(`Password reset successfully for ${userName}.`, 'success');
+    } catch (err) {
+      errEl.textContent = err.message || 'Failed to reset password.';
+      errEl.style.display = 'block';
+    }
+  });
+}
+
+// ─── Suspend / Unlock ─────────────────────────────────────────────────────────
+
+async function suspendUser(userId, userName) {
+  const reason = prompt(`Reason for suspending ${userName} (optional):`);
+  if (reason === null) return; // cancelled
+  try {
+    await api.post(`/api/users/${userId}/suspend`, { reason });
+    showToast(`${userName} suspended.`, 'success');
+    await loadUsers();
+  } catch (err) {
+    showToast(err.message || 'Failed to suspend user.', 'error');
+  }
+}
+
+async function unlockUser(userId, userName) {
+  if (!confirm(`Reactivate account for ${userName}?`)) return;
+  try {
+    await api.post(`/api/users/${userId}/unlock`, {});
+    showToast(`${userName} reactivated.`, 'success');
+    await loadUsers();
+  } catch (err) {
+    showToast(err.message || 'Failed to unlock user.', 'error');
+  }
+}
+
+// ─── List ─────────────────────────────────────────────────────────────────────
 
 async function loadUsers() {
   const list = document.getElementById('users-list');
@@ -137,49 +198,70 @@ async function loadUsers() {
   const role = document.getElementById('role-filter')?.value || '';
   list.innerHTML = `<div class="card p-4 space-y-3">${Array(5).fill('<div class="skeleton h-12 rounded-lg"></div>').join('')}</div>`;
 
+  const isOwner = window.PORTAL_ROLE === 'OWNER';
+
   try {
     const url = role ? `/api/users?role=${role}` : '/api/users';
     const data = await api.get(url);
     const users = data.users || data || [];
 
-    // Re-fetch current user role to determine if edit actions should be shown
-    const isOwner = document.querySelector('[data-portal-role]')?.dataset.portalRole === 'OWNER'
-      || (window.PORTAL_ROLE === 'OWNER');
+    if (!users.length) {
+      list.innerHTML = `<div class="card p-12 text-center text-text-secondary">No staff found.</div>`;
+      return;
+    }
 
-    list.innerHTML = users.length
-      ? `<div class="card overflow-hidden">
-          <table class="data-table w-full">
-            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Division</th><th>Status</th>${isOwner ? '<th></th>' : ''}</tr></thead>
-            <tbody>
-              ${users.map(u => `
-                <tr>
-                  <td class="font-medium text-primary">${u.full_name}</td>
-                  <td class="text-text-secondary text-sm">${u.email}</td>
-                  <td><span class="badge badge-neutral text-xs">${formatRole(u.role)}</span></td>
-                  <td class="text-text-secondary text-sm">${u.division_scope || '—'}</td>
-                  <td><span class="badge ${u.is_active ? 'badge-success' : 'badge-warning'} text-xs">${u.is_active ? 'Active' : 'Inactive'}</span></td>
-                  ${isOwner ? `<td class="text-right">
-                    <button class="btn btn-sm btn-ghost edit-user-btn" data-id="${u.id}" data-name="${u.full_name}" data-phone="${u.phone || ''}" data-role="${u.role}" data-division="${u.division_scope}" data-active="${u.is_active}">Edit</button>
-                    <button class="btn btn-sm ${u.is_active ? 'btn-danger-ghost' : 'btn-ghost'} toggle-active-btn" data-id="${u.id}" data-active="${u.is_active}">${u.is_active ? 'Deactivate' : 'Activate'}</button>
-                  </td>` : ''}
-                </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>`
-      : `<div class="card p-12 text-center text-text-secondary">No staff found.</div>`;
+    list.innerHTML = `
+      <div class="card overflow-hidden">
+        <table class="data-table w-full">
+          <thead>
+            <tr>
+              <th>Name</th><th>Email</th><th>Role</th><th>Division</th><th>Status</th>
+              ${isOwner ? '<th></th>' : ''}
+            </tr>
+          </thead>
+          <tbody>
+            ${users.map(u => `
+              <tr>
+                <td class="font-medium text-primary">${u.full_name}</td>
+                <td class="text-text-secondary text-sm">${u.email}</td>
+                <td><span class="badge badge-neutral text-xs">${formatRole(u.role)}</span></td>
+                <td class="text-text-secondary text-sm">${u.division_scope || '—'}</td>
+                <td><span class="badge ${u.is_active ? 'badge-success' : 'badge-warning'} text-xs">${u.is_active ? 'Active' : 'Inactive'}</span></td>
+                ${isOwner ? `
+                <td class="text-right">
+                  <div class="flex items-center justify-end gap-1 flex-wrap">
+                    <button class="btn btn-sm btn-ghost edit-user-btn"
+                      data-id="${u.id}" data-name="${u.full_name}" data-phone="${u.phone || ''}"
+                      data-role="${u.role}" data-division="${u.division_scope}" data-active="${u.is_active}">Edit</button>
+                    <button class="btn btn-sm btn-ghost reset-pw-btn"
+                      data-id="${u.id}" data-name="${u.full_name}">Reset PW</button>
+                    ${u.is_active
+                      ? `<button class="btn btn-sm btn-danger-ghost suspend-btn" data-id="${u.id}" data-name="${u.full_name}">Suspend</button>`
+                      : `<button class="btn btn-sm btn-ghost text-success unlock-btn" data-id="${u.id}" data-name="${u.full_name}">Unlock</button>`
+                    }
+                  </div>
+                </td>` : ''}
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
 
     if (isOwner) {
-      list.querySelectorAll('.edit-user-btn').forEach(btn => {
-        btn.addEventListener('click', () => openEditModal(btn.dataset));
-      });
-      list.querySelectorAll('.toggle-active-btn').forEach(btn => {
-        btn.addEventListener('click', () => toggleActive(btn.dataset.id, btn.dataset.active === 'true'));
-      });
+      list.querySelectorAll('.edit-user-btn').forEach(btn =>
+        btn.addEventListener('click', () => openEditModal(btn.dataset)));
+      list.querySelectorAll('.reset-pw-btn').forEach(btn =>
+        btn.addEventListener('click', () => openResetPasswordModal(btn.dataset.id, btn.dataset.name)));
+      list.querySelectorAll('.suspend-btn').forEach(btn =>
+        btn.addEventListener('click', () => suspendUser(btn.dataset.id, btn.dataset.name)));
+      list.querySelectorAll('.unlock-btn').forEach(btn =>
+        btn.addEventListener('click', () => unlockUser(btn.dataset.id, btn.dataset.name)));
     }
   } catch (err) {
     list.innerHTML = `<div class="card p-6 text-danger text-sm">${err.message}</div>`;
   }
 }
+
+// ─── Edit Modal ───────────────────────────────────────────────────────────────
 
 function openEditModal(data) {
   let modal = document.getElementById('edit-user-modal');
@@ -188,7 +270,7 @@ function openEditModal(data) {
     modal.id = 'edit-user-modal';
     modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;';
     modal.innerHTML = `
-      <div style="position:absolute;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);"></div>
+      <div id="edit-modal-backdrop" style="position:absolute;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);"></div>
       <div style="position:relative;background:#fff;border-radius:1.25rem;box-shadow:0 25px 60px rgba(0,0,0,0.2);width:100%;max-width:480px;padding:1.5rem;z-index:201;margin:1rem;">
         <h2 style="font-size:1.125rem;font-weight:700;color:var(--color-primary);margin-bottom:1rem;">Edit Staff Member</h2>
         <div style="display:grid;gap:0.75rem;">
@@ -215,14 +297,10 @@ function openEditModal(data) {
         <p id="edit-error" style="color:var(--color-danger);font-size:0.75rem;margin-top:0.5rem;display:none;"></p>
       </div>`;
     document.body.appendChild(modal);
-
-    modal.querySelector('div').addEventListener('click', (e) => {
-      if (e.target === modal.querySelector('div')) modal.style.display = 'none';
-    });
-    document.getElementById('cancel-edit-btn').addEventListener('click', () => { modal.style.display = 'none'; });
+    modal.querySelector('#edit-modal-backdrop').addEventListener('click', () => { modal.style.display = 'none'; });
+    modal.querySelector('#cancel-edit-btn').addEventListener('click', () => { modal.style.display = 'none'; });
   }
 
-  // Populate fields
   document.getElementById('edit-name').value = data.name || '';
   document.getElementById('edit-phone').value = data.phone || '';
   document.getElementById('edit-role').value = data.role || '';
@@ -230,10 +308,9 @@ function openEditModal(data) {
   document.getElementById('edit-error').style.display = 'none';
   modal.style.display = 'flex';
 
-  // Save handler (replace each open to avoid duplicate listeners)
-  const btn = document.getElementById('confirm-edit-btn');
-  const newBtn = btn.cloneNode(true);
-  btn.parentNode.replaceChild(newBtn, btn);
+  const oldBtn = document.getElementById('confirm-edit-btn');
+  const newBtn = oldBtn.cloneNode(true);
+  oldBtn.parentNode.replaceChild(newBtn, oldBtn);
   newBtn.addEventListener('click', async () => {
     const errEl = document.getElementById('edit-error');
     errEl.style.display = 'none';
@@ -254,22 +331,11 @@ function openEditModal(data) {
   });
 }
 
-async function toggleActive(userId, currentlyActive) {
-  const action = currentlyActive ? 'deactivate' : 'activate';
-  if (!confirm(`Are you sure you want to ${action} this account?`)) return;
-  try {
-    await api.put(`/api/users/${userId}`, { is_active: !currentlyActive });
-    showToast(`Account ${action}d successfully.`, 'success');
-    await loadUsers();
-  } catch (err) {
-    showToast(err.message || `Failed to ${action} account.`, 'error');
-  }
-}
+// ─── Create User ──────────────────────────────────────────────────────────────
 
 async function createUser(closeModal) {
   const errEl = document.getElementById('add-error');
   errEl.style.display = 'none';
-
   const body = {
     full_name:      document.getElementById('new-name').value.trim(),
     email:          document.getElementById('new-email').value.trim(),
@@ -278,13 +344,11 @@ async function createUser(closeModal) {
     division_scope: document.getElementById('new-division').value,
     password:       document.getElementById('new-password').value,
   };
-
   if (!body.full_name || !body.email || !body.password) {
     errEl.textContent = 'Name, email and password are required.';
     errEl.style.display = 'block';
     return;
   }
-
   try {
     await api.post('/api/users', body);
     closeModal();
@@ -296,34 +360,39 @@ async function createUser(closeModal) {
   }
 }
 
-function clearForm() {
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function updateDivisionHint() {
+  const role = document.getElementById('new-role')?.value;
+  const hint = document.getElementById('division-hint');
+  if (!hint) return;
+  const hints = {
+    PRINCIPAL:'Secondary only — set to SECONDARY', VICE_PRINCIPAL:'Secondary only — set to SECONDARY',
+    HEAD_TEACHER:'Nursery/Primary — set to PRIMARY or NURSERY', ASST_HEAD_TEACHER:'Nursery/Primary — set to PRIMARY or NURSERY',
+    BURSAR:'Set to the division this bursar covers', EXAM_OFFICER:'Usually ALL unless scoped to one division',
+    ADMISSIONS_OFFICER:'Usually ALL to handle all divisions', BLOG_MANAGER:'Leave as ALL',
+    ICT_ADMIN:'Leave as ALL', TEACHER:'Set to the division this teacher teaches in',
+    CLASS_TEACHER:'Set to the division this class teacher is in',
+  };
+  hint.textContent = hints[role] || '';
+}
+
+function clearAddForm() {
   ['new-name','new-email','new-phone','new-password'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
+    const el = document.getElementById(id); if (el) el.value = '';
   });
   const errEl = document.getElementById('add-error');
   if (errEl) errEl.style.display = 'none';
-  const hint = document.getElementById('division-hint');
-  if (hint) hint.textContent = '';
 }
 
 function formatRole(r) {
   const m = {
-    OWNER:              'School Owner',
-    PRINCIPAL:          'Principal',
-    VICE_PRINCIPAL:     'Vice Principal',
-    HEAD_TEACHER:       'Head Teacher',
-    ASST_HEAD_TEACHER:  'Asst. Head Teacher',
-    EXAM_OFFICER:       'Exam Officer',
-    ADMISSIONS_OFFICER: 'Admissions Officer',
-    BURSAR:             'Bursar',
-    TEACHER:            'Teacher',
-    CLASS_TEACHER:      'Class Teacher',
-    STUDENT:            'Student',
-    PUPIL:              'Pupil',
-    PARENT:             'Parent',
-    BLOG_MANAGER:       'Blog / Media Manager',
-    ICT_ADMIN:          'ICT Administrator',
+    OWNER:'School Owner', PRINCIPAL:'Principal', VICE_PRINCIPAL:'Vice Principal',
+    HEAD_TEACHER:'Head Teacher', ASST_HEAD_TEACHER:'Asst. Head Teacher',
+    EXAM_OFFICER:'Exam Officer', ADMISSIONS_OFFICER:'Admissions Officer',
+    BURSAR:'Bursar', TEACHER:'Teacher', CLASS_TEACHER:'Class Teacher',
+    STUDENT:'Student', PUPIL:'Pupil', PARENT:'Parent',
+    BLOG_MANAGER:'Blog / Media Manager', ICT_ADMIN:'ICT Administrator',
   };
   return m[r] || r;
 }
